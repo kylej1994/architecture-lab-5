@@ -87,6 +87,8 @@ typedef struct CPU_State {
 int RUN_BIT;
 int STALL_FOR_CYCLES;
 int STALL_FOR_CYCLES_DCACHE;
+int VERBOSE_FLAG;
+uint64_t STALL_START_ADDR;
 
 /* global variable -- pipeline state */
 extern CPU_State CURRENT_STATE;
@@ -166,21 +168,6 @@ typedef struct CPU_CYCLE_WRITE{
 	int retired;
 	int bubble_bit;
 } CYCLE_WRITE;
-// typedef struct Pipeline_state {
-// 	int64_t fetch_regs;
-// 	int64_t decode_regs;
-// 	int64_t execute_regs;
-// 	int64_t memory_regs;
-// 	// int64_t write_regs;
-
-// 	/* Run Bit to check for halting*/
-// 	int fetch_rb;
-// 	int decode_rb;
-// 	int execute_rb;
-// 	int memory_rb;
-// 	int write_rb;
-
-// } Pipe_States;
 
 /* global pipeline state */
 CPU_State CURRENT_STATE;
@@ -211,6 +198,7 @@ void memoryOperation_hit(uint32_t currOpp);
 uint64_t forward(int register_number);
 void squash(int pl_stage_macro);
 void insert_bubble(int at_stage);
+int same_subblock(uint64_t stall_start_addr, uint64_t test_addr);
 
 /* helper functions for commands */
 void calculate(uint32_t opp_code);

@@ -75,7 +75,6 @@ void add(uint32_t hexLine){
     int rN = (0x000003E0 & hexLine) >> 5;
     int rM = (0x001F0000 & hexLine) >> 16;
     exec_stall(rN);
-    printf("rM\n");
     exec_stall(rM);
     uint64_t rN_v = forward(rN);
     uint64_t rM_v = forward(rM);
@@ -362,47 +361,49 @@ void branchCond(uint64_t hexLine){
     }
     uint64_t FETCH_PC = CURRENT_STATE.PC;
     if (result){
-        printf("BRANCH PC                : 0x%" PRIx64 "\n", C_EXECUTE.pc);
-        printf("PREDICTED PC                : 0x%" PRIx64 "\n", C_EXECUTE.predicted_pc);
-        printf("PC                : 0x%" PRIx64 "\n", CURRENT_STATE.PC);
+        printf("BRANCHCOND: BRANCH PC                : 0x%" PRIx64 "\n", C_EXECUTE.pc);
+        printf("BRANCHCOND: PREDICTED PC                : 0x%" PRIx64 "\n", C_EXECUTE.predicted_pc);
+        printf("BRANCHCOND: PC                : 0x%" PRIx64 "\n", CURRENT_STATE.PC);
         if (!C_EXECUTE.p_taken){
-        	printf("Branch taken, predicted not taken\n");
+        	printf("BRANCHCOND: Branch taken, predicted not taken\n");
         	CURRENT_STATE.PC = C_EXECUTE.pc + signExtended; 
             bp_update(C_EXECUTE.pc, CURRENT_STATE.PC, true, true); 	
         	if (C_EXECUTE.predicted_pc != CURRENT_STATE.PC)
         		squash(PL_STAGE_DECODE);
         } 
         else {
-        		printf("Branch taken, predicted taken\n");
+        		printf("BRANCHCOND: Branch taken, predicted taken\n");
         		CURRENT_STATE.PC = C_EXECUTE.predicted_pc + 4;
                 bp_update(C_EXECUTE.pc, CURRENT_STATE.PC - 4, true, true); 
 	   }
-        printf("PC                : 0x%" PRIx64 "\n", CURRENT_STATE.PC);
-        // bp_update(C_EXECUTE.pc, CURRENT_STATE.PC, true, true); 
-        printf("The pc is at %" PRIu64 "\n", CURRENT_STATE.PC);
-        printf("BCOND evaluated to TRUE\n");
+        printf("BRANCHCOND: PC                : 0x%" PRIx64 "\n", CURRENT_STATE.PC);
+        printf("BRANCHCOND: BCOND evaluated to TRUE\n");
         C_EXECUTE.pc = CURRENT_STATE.PC;
     } 
     else{
-        printf("BCOND evaluated to FALSE\n");
+        printf("BRANCHCOND: BCOND evaluated to FALSE\n");
         if (C_EXECUTE.p_taken){
-            printf("Branch not taken, predict branch taken\n");
+            printf("BRANCHCOND: Branch not taken, predict branch taken\n");
             CURRENT_STATE.PC = C_EXECUTE.pc + 4;
            if (CURRENT_STATE.PC != C_EXECUTE.predicted_pc)
 		      squash(PL_STAGE_DECODE);
 	    } else{
-            printf("Branch not taken, predict branch not taken\n");
+            printf("BRANCHCOND: Branch not taken, predict branch not taken\n");
         }
         bp_update(C_EXECUTE.pc, CURRENT_STATE.PC, false, true);
-        printf("CURRENT_STATE.PC                : 0x%" PRIx64 "\n", CURRENT_STATE.PC);
-        printf("C_DECODE.PC                : 0x%" PRIx64 "\n", C_FETCH.pc);
+        printf("BRANCHCOND: CURRENT_STATE.PC                : 0x%" PRIx64 "\n", CURRENT_STATE.PC);
+        printf("BRANCHCOND: C_DECODE.PC                : 0x%" PRIx64 "\n", C_FETCH.pc);
         /* If you predict you would take the branch, but did not take it then clear pipeline*/
 
     }
     /*Check if you need to short-circuit your stall*/
     if (STALL_FOR_CYCLES > 0){
-        if (FETCH_PC != CURRENT_STATE.PC)
+        // if (FETCH_PC != CURRENT_STATE.PC)
+        //     unset_stall(PL_INCREMENT_FIFTY);
+        if (!same_subblock(FETCH_PC, CURRENT_STATE.PC)){
+            printf("BRANCHCOND: SHORT-CIRCUIT STALL\n");
             unset_stall(PL_INCREMENT_FIFTY);
+        }
     }
     return;
 }
@@ -454,7 +455,9 @@ void cbznz(uint64_t hexLine, int isnz){
         /* If you predict you would take the branch, but did not take it then clear pipeline*/
     }
     if (STALL_FOR_CYCLES > 0){
-        if (FETCH_PC != CURRENT_STATE.PC)
+        // if (FETCH_PC != CURRENT_STATE.PC)
+        //     unset_stall(PL_INCREMENT_FIFTY);
+        if (!same_subblock(FETCH_PC, CURRENT_STATE.PC))
             unset_stall(PL_INCREMENT_FIFTY);
     }
     return;
@@ -713,9 +716,9 @@ void sub(uint32_t hexline)
     int rD = 0x0000001F & hexline;
     exec_stall(rN);
     exec_stall(rM);
-    uint64_t rN_v = forward(rN);
-    uint64_t rM_v = forward(rM);
-    uint64_t value = rN_v - (rM_v | zero);
+    int64_t rN_v = forward(rN);
+    int64_t rM_v = forward(rM);
+    int64_t value = rN_v - (rM_v | zero);
     C_EXECUTE.result = value;
     C_EXECUTE.result = rD;
     return;
@@ -723,24 +726,21 @@ void sub(uint32_t hexline)
 
 void subi(uint32_t hexline)
 {
-    uint64_t zero = 0x0;
-    int imm21_10 = ((0XFFF << 9) & hexline) >> 9;
-    int rN = (0x000003E0 & hexline) >> 5;
-    int rM = (0x001F0000 & hexline) >> 16;
+    int32_t imm21_10 = ((0XFFF << 10) & hexline) >> 10;
+    int32_t rN = (0x000003E0 & hexline) >> 5;
     int rD = 0x0000001F & hexline;
     exec_stall(rN);
-    exec_stall(rM);
-    uint64_t rN_v = forward(rN);
-    uint64_t rM_v = forward(rM);
+    int64_t rN_v = forward(rN);
     int shift = ((0X3) << 21 & hexline) >> 21; 
-    uint64_t value = 0;
+    int64_t value = 0;
 
     switch(shift){
         case 0:
-            value =  rN_v - rM_v;
+            value =  rN_v - imm21_10;
+            if (VERBOSE_FLAG) printf("rN_v is %d and imm21_10 is %d\n", (int32_t)rN_v, imm21_10);
             break;
         case 1:
-            value =  rN_v - shiftReg(rM_v, 0, imm21_10);
+            value =  rN_v - imm21_10;
             break;
         default:
             printf("SUBI did not process correctly");
@@ -761,6 +761,7 @@ void subs(uint32_t hexline)
     exec_stall(rM);
     int64_t rN_v = forward(rN);
     int64_t rM_v = forward(rM);
+    printf("CURRENT_STATE.REGS[0]: %d\n", (int) CURRENT_STATE.REGS[0]);
     printf("rN is %d and rM is %d and rD is %d\n", rN, rM, rD);
     printf("SUBS: rN_v %d, rM_v %d\n", (int) rN_v, (int) rM_v);
     int64_t result = 0;
@@ -821,22 +822,25 @@ void subsi(uint32_t hexline)
     C_EXECUTE.result = result;
     C_EXECUTE.resultRegister = rD;
     
+    
     C_EXECUTE.FLAG_N = 0;
     if (result < 0)
         C_EXECUTE.FLAG_N = 1;
 
     C_EXECUTE.FLAG_C = 0;
-    if (rN_v > 0)
+    if (rN_v > 0 && imm21_10 > 0)
         if (result < 0)
             C_EXECUTE.FLAG_C = 1;
     //If two negatives results in a positive then thats overflow
     C_EXECUTE.FLAG_V = 0;
-    if (rN_v < 0)
+    if (rN_v < 0 && imm21_10 < 0){
         if (result > 0)
             C_EXECUTE.FLAG_V = 1;
-    if (rN_v > 0 && imm21_10 < 0)
+    }
+    if (rN_v > 0 && imm21_10 < 0){
         if (result < 0)
             C_EXECUTE.FLAG_V = 1;
+    }
     C_EXECUTE.FLAG_Z = 0;
     if (result == 0)
         C_EXECUTE.FLAG_Z = 1;
@@ -1032,11 +1036,11 @@ void br(uint32_t hexline){
                 return;
             case OPP_MACRO_NOP:
             // case OPP_MACRO_HLT:
-                printf("No op\n");
+                if (VERBOSE_FLAG) printf("EXECUTE No op\n");
                 return;
             case OPP_MACRO_UNK:
             case OPP_MACRO_UNASS:
-                printf("ERR: You have reach unassigned or unkown\n" );
+                if (VERBOSE_FLAG) printf("EXECUTE ERR: You have reach unassigned or unkown\n" );
                 return;
         }
 }

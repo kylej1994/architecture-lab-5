@@ -65,20 +65,24 @@
         
         CURRENT_STATE.PC = 0x00400000;
         STALL_FOR_CYCLES = 0;
+        VERBOSE_FLAG = true; //<----SET THIS TO FALSE WHEN YOU TURN IN ASSIGNMENTS
         // printf("PC initialized to  %08x\n",  CURRENT_STATE.PC);
     }
 
     void pipe_cycle()
     {
-        printf("===============================================================\n");
+        if (VERBOSE_FLAG)
+            printf("===============================================================\n");
         pipe_stage_wb();
         pipe_stage_mem();
         pipe_stage_execute();
         pipe_stage_decode();
         pipe_stage_fetch();
-        printf("fetch\tdecode\texec\tmem\twrite\n");
-        printf("%c\t%d\t%d\t%d\t%d\n", '?', C_DECODE.oppCode, C_EXECUTE.oppCode, C_MEMORY.oppCode, C_WRITE.oppCode);
-        printf("===============================================================\n");
+        if (VERBOSE_FLAG){
+            printf("fetch\tdecode\texec\tmem\twrite\n");
+            printf("%c\t%d\t%d\t%d\t%d\n", '?', C_DECODE.oppCode, C_EXECUTE.oppCode, C_MEMORY.oppCode, C_WRITE.oppCode);
+            printf("===============================================================\n");
+        }
         
     }
     
@@ -97,14 +101,18 @@
         uint32_t currOp = C_MEMORY.oppCode;
         C_WRITE.oppCode = C_MEMORY.oppCode;
         C_WRITE.retired = C_MEMORY.retired;
-        uint64_t result = -1; //Initialize result to negative 1, so zero flag is not automatically set
+
+        int64_t result = -1; //Initialize result to negative 1, so zero flag is not automatically set
 
         if (is_writeable(currOp)){
             int destReg = C_MEMORY.resultRegister;
             result = C_MEMORY.result;
             CURRENT_STATE.REGS[destReg] = result;
             C_WRITE.write_bit = true;
-            printf("*****value: %08x into reg %d\n", (uint32_t)result, destReg);
+            C_WRITE.result = C_MEMORY.result;
+            C_WRITE.resultRegister = C_MEMORY.resultRegister;
+            if (VERBOSE_FLAG)
+                printf("*****value: %08x into reg %d\n", (uint32_t)result, destReg);
         }
         if (is_flaggable(currOp)){
             //Set flags equal to flags for execute
@@ -117,7 +125,6 @@
         because HLT is in WB every instruction before it is completed
         */
         result = C_MEMORY.result;
-        printf("WRITE: current OPP code is %d\n", C_WRITE.oppCode);
         if (C_WRITE.oppCode != OPP_MACRO_UNK)
             stat_inst_retire += C_WRITE.retired;
         /*Unstall any pipelines if applicable*/
@@ -140,7 +147,8 @@
     void pipe_stage_mem()
     {
         if (C_MEMORY.bubble_bit){
-            printf("MEM: number of dcache stall cycles entering loop %d \n", STALL_FOR_CYCLES_DCACHE);
+            if (VERBOSE_FLAG)
+                printf("MEM: number of dcache stall cycles entering loop %d \n", STALL_FOR_CYCLES_DCACHE);
             if (STALL_FOR_CYCLES_DCACHE  == 0){
                 /* execute normal opp*/
                 C_MEMORY.oppCode = C_EXECUTE.oppCode;
@@ -159,19 +167,21 @@
                 int cacheHit = cache_hit(D_CACHE, C_EXECUTE.result);
 
                 if (is_memory(currOp)){
-                    printf("MEMORY: basecase about to be triggered\n");
+                    if (VERBOSE_FLAG)
+                        printf("MEMORY: basecase about to be triggered\n");
                     if (cacheHit >= 0){
-                        printf("DCACHE HIT\n");
+                        if (VERBOSE_FLAG) printf("DCACHE HIT\n");
                         memoryOperation_hit(currOp);
                     } else {
-                        printf("DCACHE MISS\n");
+                        if (VERBOSE_FLAG) printf("DCACHE MISS\n");
+                        printf("<=============================DCACHE FILL TRIGGERED\n");
                         memoryOperation_basecase(currOp);
                     }
                     
                     /*Check for store after load stalls*/
                     if (is_stur(C_MEMORY.oppCode)){
                         if (is_load(C_EXECUTE.oppCode)){
-                            printf("MEMORY: store after a load stall\n");
+                            if (VERBOSE_FLAG) printf("MEMORY: store after a load stall\n");
                             set_stall(PL_STAGE_EXECUTE);
                         }
                     }
@@ -188,7 +198,7 @@
             }else {
                 /* insert bubble*/
                 STALL_FOR_CYCLES_DCACHE -= 1;
-                printf("MEMORY: number of stall cycles after decrement %d \n", STALL_FOR_CYCLES_DCACHE);
+                if (VERBOSE_FLAG) printf("MEMORY: number of stall cycles after decrement %d \n", STALL_FOR_CYCLES_DCACHE);
             }
             return;
         }
@@ -215,6 +225,7 @@
             calculate(currOp);
             int cacheHit = cache_hit(D_CACHE, C_EXECUTE.result);
             if (cacheHit >= 0){
+                printf("DCACHE HIT\n");
                 memoryOperation_hit(currOp);
             } else {
                 set_stall(PL_DECODE_INCR_FIFTY);
@@ -226,7 +237,7 @@
             /*Check for store after load stalls*/
             if (is_stur(C_MEMORY.oppCode)){
                 if (is_load(C_EXECUTE.oppCode)){
-                    printf("MEMORY: store after a load stall\n");
+                    if (VERBOSE_FLAG) printf("MEMORY: store after a load stall\n");
                     set_stall(PL_STAGE_EXECUTE);
                 }
             }
@@ -631,7 +642,7 @@ void memoryOperation_hit(uint32_t currOpp){
 
     void pipe_stage_fetch()
     {
-        printf("FETCH: Currently %d STALL_FOR_CYCLES\n", STALL_FOR_CYCLES);
+        // printf("FETCH: Currently %d STALL_FOR_CYCLES for start_addr %08x\n", STALL_FOR_CYCLES, STALL_START_ADDR);
         uint32_t currOpp;
         int cacheHit;
         if ((!C_MEMORY.run_bit) || (!C_EXECUTE.run_bit) || (C_MEMORY.bubble_bit)){
@@ -646,11 +657,12 @@ void memoryOperation_hit(uint32_t currOpp){
             return;
         }
         if (C_FETCH.stall_bit){
+            /* Finished Stalling. Actually load mem values in */
             if (STALL_FOR_CYCLES == 0){
                 unset_stall(PL_INCREMENT_FIFTY);
                 cacheHit = cache_hit(I_CACHE, CURRENT_STATE.PC);
                 currOpp = mem_read_32(CURRENT_STATE.PC);
-                cache_update(CURRENT_STATE.PC, I_CACHE);
+                cache_update(STALL_START_ADDR, I_CACHE);
                 C_EXECUTE.branch_stall_bit = false;
                 C_FETCH.instr = currOpp;
                 C_FETCH.pc = CURRENT_STATE.PC;  
@@ -689,6 +701,8 @@ void memoryOperation_hit(uint32_t currOpp){
         	/*setting the curOpp to the instruction that is stored then update cache*/
         	uint64_t subblock_mask = (CURRENT_STATE.PC & (0x7 << 2)) >> 2;
         	currOpp = CACHE.i_cache[current_state_index].block[cacheHit].subblock_data[subblock_mask];
+            // printf("FETCH: i_cache_index: %d, block: %d, subblock: %d\n", current_state_index, cacheHit, subblock_mask);
+            // printf("FETCH currOpp: %08x\n", currOpp);
         	cache_update(CURRENT_STATE.PC, I_CACHE);
             C_EXECUTE.branch_stall_bit = false;
             C_FETCH.instr = currOpp;
@@ -705,7 +719,7 @@ void memoryOperation_hit(uint32_t currOpp){
         /*Cache Miss: Trigger 50 cycle stall*/
 		else
         {
-        	printf("ICACHE MISS asdfas: The index is %d\n", (int) current_state_index);
+        	// printf("ICACHE MISS asdfas: The index is %d\n", (int) current_state_index);
 
             set_stall(PL_INCREMENT_FIFTY);
 
@@ -773,6 +787,8 @@ void memoryOperation_hit(uint32_t currOpp){
                 // C_MEMORY.stall_bit = true;
                 // C_WRITE.stall_bit = true;
                 STALL_FOR_CYCLES = 49;
+                STALL_START_ADDR = CURRENT_STATE.PC;
+
                 break;
             case PL_DECODE_INCR_FIFTY:
                 printf("PL_DECODE_INCR_FIFTY STALL SET\n");
@@ -846,10 +862,11 @@ void memoryOperation_hit(uint32_t currOpp){
     void exec_stall(int register_number){
         /*Check for LOAD in MEM, and "write" Execution operations for stalls*/
         //Check if the operation in MEMORY stage is a LOAD, and is possible of triggering stuff
-        printf("exec stall\n");
+        if (VERBOSE_FLAG) printf("EXEC_STALL: exec stall entered\n");
         if (is_load(C_MEMORY.oppCode)){
             //Check if the registers overlap between MEM, and current
             if (register_number == C_MEMORY.resultRegister){ 
+                if (VERBOSE_FLAG) printf("EXEC STALL: EXEC STALL EXECUTED\n");
                 set_stall(PL_STAGE_EXECUTE);
                 // insert_bubble(PL_STAGE_MEMORY);
                 C_EXECUTE.retired = 0;
@@ -893,30 +910,29 @@ void memoryOperation_hit(uint32_t currOpp){
 *******************************************************************/
 
     uint64_t forward(int register_number){
-        printf("forward on register_number%d\n", register_number);
-        uint64_t register_value = CURRENT_STATE.REGS[register_number];
-
+        printf("FORWARD: forward on register_number -----> %d\n", register_number);
+        int64_t register_value = CURRENT_STATE.REGS[register_number];
+        printf("FORWARD: register_value %d for register %d\n", (int) register_value, register_number);
         /*Check for wb forward*/
         int wb_reg = C_WRITE.resultRegister;
         if (wb_reg == register_number){
-            printf("WB FORWARD TRIGGERED\n");
-            printf("triggered by opp code %d\n", C_EXECUTE.oppCode);
+            printf("FORWARD: WB FORWARD TRIGGERED\n");
 
 
             //Check if the value in the WRITE stage is the same register
             register_value = C_WRITE.result; 
         }
+        printf("FORWARD: returning WRITE mem forward %d\n", (int) register_value);
         /*Check for mem forward*/
         int mem_reg = C_MEMORY.resultRegister;
         if (mem_reg == register_number){
-            printf("MEM FORWARD TRIGGERED\n");
-            printf("triggered by opp code %d\n", C_EXECUTE.oppCode);
-
 
             //check if the value in the MEMORY stage is the same
             //registers are the same and we SHOULD forward ONE OF THE OPERANDS
             register_value = C_MEMORY.result; 
         }
+        printf("FORWARD: returning MEMORY forward %d\n", (int) register_value);
+
         return register_value;
     }
 
@@ -1078,5 +1094,19 @@ void memoryOperation_hit(uint32_t currOpp){
             default:
                 return false;
         }
+    }
+
+    int same_subblock(uint64_t stall_start_addr, uint64_t test_addr){
+        printf("<------------\n");
+        int i;
+        int flag = false;
+        for (i = 0; i < 8; i ++){
+            if (test_addr == stall_start_addr + (i * 4)){
+                flag = true;
+                printf("*********************************SAME SUBBLOCK\n");
+            }
+
+        }
+        return flag;
     }
 /* Helper function to distribute stores and loads */
