@@ -176,6 +176,7 @@
                         if (VERBOSE_FLAG) printf("DCACHE MISS\n");
                         printf("<=============================DCACHE FILL TRIGGERED\n");
                         memoryOperation_basecase(currOp);
+                        // printf("============================> POST FILL\n");
                     }
                     
                     /*Check for store after load stalls*/
@@ -270,7 +271,6 @@ void memoryOperation_basecase(uint32_t currOp){
             uint32_t data, data_h, data1, data2; 
             switch (currOp){
                 case OPP_MACRO_LDUR:
-              			printf("MEM_OP_BASE: LDUR TRIGGERED\n");
                       	data1 = mem_read_32(C_EXECUTE.result);
                    		data2 = mem_read_32(C_EXECUTE.result + 4);
                     	C_MEMORY.result = ((uint64_t) data2 << 32) | data1;
@@ -295,7 +295,7 @@ void memoryOperation_basecase(uint32_t currOp){
                     	cache_update(C_EXECUTE.result, D_CACHE);
                     break;
                 default:
-                    printf("You triggered is_load for some reason\n");
+                    if (VERBOSE_FLAG) printf("You triggered is_load for some reason\n");
             }
         } else {
         // STORE CASE
@@ -362,7 +362,7 @@ void memoryOperation_hit(uint32_t currOpp){
                         C_MEMORY.resultRegister = C_EXECUTE.resultRegister;
                     break;
                 default:
-                    printf("You triggered is_load for some reason\n");
+                    if (VERBOSE_FLAG) printf("You triggered is_load for some reason\n");
             }
         } else {
         // STORE CASE
@@ -719,7 +719,7 @@ void memoryOperation_hit(uint32_t currOpp){
         /*Cache Miss: Trigger 50 cycle stall*/
 		else
         {
-        	// printf("ICACHE MISS asdfas: The index is %d\n", (int) current_state_index);
+        	printf("ICACHE MISS asdfas: The index is %d\n", (int) current_state_index);
 
             set_stall(PL_INCREMENT_FIFTY);
 

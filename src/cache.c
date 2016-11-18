@@ -110,6 +110,7 @@ int cache_hit(int cache_type, uint64_t addr)
 
 void cache_evict(int cache_type, uint64_t cache_index, uint64_t tag)
 {
+    printf("CACHE EVICT: eviction triggered\n");
 	int i, j;
     if (cache_type == I_CACHE){
     	for (i = 0; i < ICACHE_SUBBLOCKS_PER_SET; i++)
@@ -130,17 +131,20 @@ void cache_evict(int cache_type, uint64_t cache_index, uint64_t tag)
             }
     }
     else{
+        printf("CACHE EVICT: DCACHE EVICTION TRIGGERED\n");
         for (i = 0; i < DCACHE_SUBBLOCKS_PER_SET; i++)
             {
-                if (CACHE.d_cache[cache_index].block[i].tag == tag)
+                // printf("CACHE.d_cache[cache_index].block[i].tag %" PRIx64 " and tag %" PRIx64 "\n", CACHE.d_cache[cache_index].block[i].tag, tag);
+                if (CACHE.d_cache[cache_index].block[i].position_RU == 8)
                 {
+                    // printf("CACHE EVICT: DCACHE TAGS MATCH\n");
                     /* write to memory if dirty bit is set*/ 
                     if (CACHE.d_cache[cache_index].block[i].dirty){
                         uint64_t addr = CACHE.d_cache[cache_index].block[cache_index].startAddr;
                         for (j = 0; j < SUBBLOCK_SIZE; j++) 
                         {
-                            uint32_t v = CACHE.d_cache[cache_index].block[cache_index].subblock_data[j];
-                            //("CACHE_EVICT: We are writing %" PRIx64" to mem \n", v);
+                            int32_t v = CACHE.d_cache[cache_index].block[cache_index].subblock_data[j];
+                            // printf("CACHE_EVICT: We are writing %" PRIx64" to mem \n", v);
                             mem_write_32(addr + (j*4), v); 
                         }
                         CACHE.d_cache[cache_index].block[cache_index].dirty = false;
@@ -163,7 +167,7 @@ void cache_evict(int cache_type, uint64_t cache_index, uint64_t tag)
 
 void dcache_modify(uint64_t addr, int32_t data, int32_t data2, int is_64bit)
 {
-	printf("DCACHE MODIFY: running dcahce modify\n");
+	// printf("DCACHE MODIFY: running dcahce modify\n");
 	
 /*You need a store/modification condition when you're modifying cache values*/ 
     uint64_t d_cache_index = (addr & 0x1FE0) >> 5; // bits [12:5] of the PC, will be between 0-255  
@@ -198,13 +202,12 @@ void dcache_modify(uint64_t addr, int32_t data, int32_t data2, int is_64bit)
         // all valid, write to LRU 
         // printf("DCACHE_MODIFY: The LRU is %" PRIx64"\n", CACHE.d_cache[d_cache_index].block[i].position_RU);
 
-        if ((CACHE.d_cache[d_cache_index].block[i].position_RU == 8) || (CACHE.d_cache[d_cache_index].block[i].tag == d_cache_tag))
+        if ((CACHE.d_cache[d_cache_index].block[i].position_RU == 9) || (CACHE.d_cache[d_cache_index].block[i].tag == d_cache_tag))
         {
-            printf("DCACHE MODIFY: EMPTY LOOP ENTERED\n");
             // printf("DCACHE_MODIFY: Have to mem write because we had to evict\n");
             // mem_write_32(addr, data); // before we overwrite the data, we write back to memory
             // printf("DCACHE_MODIFY: We are evicting from block %" PRIx64" % " PRIx64 " in the cache \n", d_cache_index, d_cache_tag);
-            if (CACHE.d_cache[d_cache_index].block[i].position_RU == 8)
+            if (CACHE.d_cache[d_cache_index].block[i].position_RU == 9)
                 cache_evict(D_CACHE, d_cache_index, d_cache_tag);
             if (!is_64bit)
                 CACHE.d_cache[d_cache_index].block[i].subblock_data[subblock_mask] = data;
@@ -254,15 +257,15 @@ void cache_update(uint64_t addr, int cache_type)
     	 		 if (CACHE.i_cache[i_cache_index].block[i].position_RU != 4)
     	    		CACHE.i_cache[i_cache_index].block[i].position_RU += 1;
     			}
-       //          printf("ICACHE UPDATE: i_cache_index: %d, block: %d\n", i_cache_index, i);
-    			// /*Load next 8 instructions into cache*/
-    			// for (j = 0; j < SUBBLOCK_SIZE; j++)
-    			// {
-    			// 	printf("ICACHE UPDATE: loading data from %" PRIx64 " into the cache \n" ,addr + (j*4));
-    			// 	CACHE.i_cache[i_cache_index].block[i].subblock_data[j] = mem_read_32(addr + (j*4)); //addr is PC
-    			// 	printf("ICACHE UPDATE: loaded  %" PRIx64 " into the cache for index %d and block %d \n" , CACHE.i_cache[i_cache_index].block[i].subblock_data[j], i_cache_index, j);
-    			// 	// printf("\n\n");
-    			// }
+                // printf("ICACHE UPDATE: i_cache_index: %d, block: %d\n", i_cache_index, i);
+    			/*Load next 8 instructions into cache*/
+    			for (j = 0; j < SUBBLOCK_SIZE; j++)
+    			{
+    				// printf("ICACHE UPDATE: loading data from %" PRIx64 " into the cache \n" ,addr + (j*4));
+    				CACHE.i_cache[i_cache_index].block[i].subblock_data[j] = mem_read_32(addr + (j*4)); //addr is PC
+    				// printf("ICACHE UPDATE: loaded  %" PRIx64 " into the cache for index %d and block %d \n" , CACHE.i_cache[i_cache_index].block[i].subblock_data[j], i_cache_index, j);
+    				// printf("\n\n");
+    			}
     			return;
     		}
     	}
@@ -312,6 +315,12 @@ void cache_update(uint64_t addr, int cache_type)
 
             if (CACHE.d_cache[d_cache_index].block[i].position_RU == 8)
 			{ 
+                //DEBUG LOOP
+                // for (j = 0; j < DCACHE_SUBBLOCKS_PER_SET; j++){
+                //     printf("DCACHEUPDATE: POSITION_RU %d for block %d\n", CACHE.d_cache[d_cache_index].block[j].position_RU, j);
+                //     printf("first block value %" PRIx64 "\n", CACHE.d_cache[d_cache_index].block[j].subblock_data[0]);
+                // }
+                //You're evicting whatever your number 8 position_RU tag is
                 cache_evict(D_CACHE, d_cache_index, d_cache_tag);
 
                 /*Insert*/
@@ -323,7 +332,8 @@ void cache_update(uint64_t addr, int cache_type)
 	    		/*Update all other position_RU values*/
 	    		for (j = 0; j < DCACHE_SUBBLOCKS_PER_SET; j++)
 	    		{
-   	 	    		CACHE.d_cache[d_cache_index].block[j].position_RU += 1;
+                    if (j != i)
+   	 	    		    CACHE.d_cache[d_cache_index].block[j].position_RU += 1;
     			}
                 CACHE.d_cache[d_cache_index].block[i].dirty = true;
     
@@ -335,6 +345,11 @@ void cache_update(uint64_t addr, int cache_type)
       				CACHE.d_cache[d_cache_index].block[i].subblock_data[j] =  mem_read_32(addr + (j*4)); //addr is mem_address
                     // printf("DCACHE UPDATE: loaded data %" PRIx64 " into the cache \n", CACHE.d_cache[d_cache_index].block[i].subblock_data[j]);
     			}
+                //DEBUG
+                // for (j = 0; j < DCACHE_SUBBLOCKS_PER_SET; j++){
+                //     printf("DCACHEUPDATE: POSITION_RU %d for block %d\n", CACHE.d_cache[d_cache_index].block[j].position_RU, j);
+                //     printf("first block value %" PRIx64 "\n", CACHE.d_cache[d_cache_index].block[j].subblock_data[0]);
+                // }
     			return;
   			}
 		}
