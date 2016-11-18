@@ -646,8 +646,20 @@ void memoryOperation_hit(uint32_t currOpp){
         uint32_t currOpp;
         int cacheHit;
         if ((!C_MEMORY.run_bit) || (!C_EXECUTE.run_bit) || (C_MEMORY.bubble_bit)){
-            if (STALL_FOR_CYCLES > 0)
+            if (STALL_FOR_CYCLES > 0){
                 STALL_FOR_CYCLES -= 1;
+                if ((STALL_FOR_CYCLES == 0) && (STALL_FOR_CYCLES_DCACHE > 1))
+                    C_DECODE.is_overrideable_bubble = true;
+            }
+            printf("STALL-FOR_CYCLES %d AND DCACHE STALL %d\n", STALL_FOR_CYCLES, STALL_FOR_CYCLES_DCACHE);
+            if ((STALL_FOR_CYCLES == 0) && (STALL_FOR_CYCLES_DCACHE == 1) && (C_DECODE.is_overrideable_bubble)){
+                // C_DECODE.predicted_pc = C_FETCH.predicted_pc;
+                // C_DECODE.pc = C_FETCH.pc;
+                // C_DECODE.instr = C_FETCH.instr;
+                // C_DECODE.oppCode = get_opp_code(C_FETCH.instr);
+                // C_DECODE.p_taken = C_FETCH.p_taken;
+                fetch_base();
+            }
             return;
          }
         if (C_FETCH.bounce_bit){
@@ -659,22 +671,23 @@ void memoryOperation_hit(uint32_t currOpp){
         if (C_FETCH.stall_bit){
             /* Finished Stalling. Actually load mem values in */
             if (STALL_FOR_CYCLES == 0){
-                unset_stall(PL_INCREMENT_FIFTY);
-                cacheHit = cache_hit(I_CACHE, CURRENT_STATE.PC);
-                currOpp = mem_read_32(CURRENT_STATE.PC);
-                cache_update(STALL_START_ADDR, I_CACHE);
-                C_EXECUTE.branch_stall_bit = false;
-                C_FETCH.instr = currOpp;
-                C_FETCH.pc = CURRENT_STATE.PC;  
-                bp_predict(CURRENT_STATE.PC);
+                fetch_base();
+                // unset_stall(PL_INCREMENT_FIFTY);
+                // cacheHit = cache_hit(I_CACHE, CURRENT_STATE.PC);
+                // currOpp = mem_read_32(CURRENT_STATE.PC);
+                // cache_update(STALL_START_ADDR, I_CACHE);
+                // C_EXECUTE.branch_stall_bit = false;
+                // C_FETCH.instr = currOpp;
+                // C_FETCH.pc = CURRENT_STATE.PC;  
+                // bp_predict(CURRENT_STATE.PC);
 
 
-                if (C_FETCH.pseudo_stall_bit)
-                {
-                    C_FETCH.pseudo_stall_bit = false;
-                    return;
-                }
-                C_FETCH.predicted_pc = CURRENT_STATE.PC;
+                // if (C_FETCH.pseudo_stall_bit)
+                // {
+                //     C_FETCH.pseudo_stall_bit = false;
+                //     return;
+                // }
+                // C_FETCH.predicted_pc = CURRENT_STATE.PC;
                 return;
             } else if (STALL_FOR_CYCLES > 0){
                 insert_bubble(PL_STAGE_DECODE);
@@ -732,6 +745,25 @@ void memoryOperation_hit(uint32_t currOpp){
 /*******************************************************************
     STALLING: Functions to implement stalling
 *******************************************************************/
+    void fetch_base(void){
+            unset_stall(PL_INCREMENT_FIFTY);
+            int cacheHit = cache_hit(I_CACHE, CURRENT_STATE.PC);
+            uint32_t currOpp = mem_read_32(CURRENT_STATE.PC);
+            cache_update(STALL_START_ADDR, I_CACHE);
+            C_EXECUTE.branch_stall_bit = false;
+            C_FETCH.instr = currOpp;
+            C_FETCH.pc = CURRENT_STATE.PC;  
+            bp_predict(CURRENT_STATE.PC);
+
+
+            if (C_FETCH.pseudo_stall_bit)
+            {
+                C_FETCH.pseudo_stall_bit = false;
+                return;
+            }
+            C_FETCH.predicted_pc = CURRENT_STATE.PC;
+    }
+
 
     /*Helper function to set stalls. Input is the stage you "start"
     stalling at. Then you work backwards. EX/ if you "start" at MEM, 
@@ -814,9 +846,9 @@ void memoryOperation_hit(uint32_t currOpp){
                 C_FETCH.stall_bit = false;
                 C_DECODE.stall_bit = false;
                 C_DECODE.bubble_bit = false;
-                C_EXECUTE.stall_bit = false;
-                C_MEMORY.stall_bit = false;
-                C_WRITE.stall_bit = false;
+                // C_EXECUTE.stall_bit = false;
+                // C_MEMORY.stall_bit = false;
+                // C_WRITE.stall_bit = false;
                 STALL_FOR_CYCLES = 0;
                 break;
 
@@ -905,6 +937,7 @@ void memoryOperation_hit(uint32_t currOpp){
                 break;
             }
     }
+
 /*******************************************************************
     FORWARDING: helper functions for forwarding
 *******************************************************************/

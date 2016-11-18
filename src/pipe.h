@@ -118,6 +118,7 @@ typedef struct CPU_CYCLE_DECODE{
 	int oppCode;
 	int retired;
 	int p_taken;
+	int is_overrideable_bubble;
 } CYCLE_DECODE;
 
 typedef struct CPU_CYCLE_EXECUTE{
@@ -199,6 +200,7 @@ uint64_t forward(int register_number);
 void squash(int pl_stage_macro);
 void insert_bubble(int at_stage);
 int same_subblock(uint64_t stall_start_addr, uint64_t test_addr);
+void fetch_base(void);
 
 /* helper functions for commands */
 void calculate(uint32_t opp_code);
