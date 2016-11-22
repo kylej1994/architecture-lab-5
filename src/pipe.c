@@ -65,7 +65,7 @@
         
         CURRENT_STATE.PC = 0x00400000;
         STALL_FOR_CYCLES = 0;
-        VERBOSE_FLAG = true; //<----SET THIS TO FALSE WHEN YOU TURN IN ASSIGNMENTS
+        VERBOSE_FLAG = false; //<----SET THIS TO FALSE WHEN YOU TURN IN ASSIGNMENTS
         // printf("PC initialized to  %08x\n",  CURRENT_STATE.PC);
     }
 
@@ -146,9 +146,9 @@
     //If it does not then do nothing
     void pipe_stage_mem()
     {
+        if (STALL_FOR_CYCLES_DCACHE > 0) printf("dcache stall (%d)\n", STALL_FOR_CYCLES_DCACHE);
         if (C_MEMORY.bubble_bit){
-            if (VERBOSE_FLAG)
-                printf("MEM: number of dcache stall cycles entering loop %d \n", STALL_FOR_CYCLES_DCACHE);
+            if (VERBOSE_FLAG)  printf("MEM: number of dcache stall cycles entering loop %d \n", STALL_FOR_CYCLES_DCACHE);
             if (STALL_FOR_CYCLES_DCACHE  == 0){
                 /* execute normal opp*/
                 C_MEMORY.oppCode = C_EXECUTE.oppCode;
@@ -171,11 +171,15 @@
                         printf("MEMORY: basecase about to be triggered\n");
                     if (cacheHit >= 0){
                         if (VERBOSE_FLAG) printf("DCACHE HIT\n");
+                        // printf("dcache hit (0x%" PRIx64") at cycle %d\n", C_EXECUTE.result, stat_cycles + 1);
                         memoryOperation_hit(currOp);
+                        printf("dcache hit (0x%" PRIx64") at cycle %d\n", C_EXECUTE.result, stat_cycles + 1);
                     } else {
                         if (VERBOSE_FLAG) printf("DCACHE MISS\n");
-                        printf("<=============================DCACHE FILL TRIGGERED\n");
+                        printf("dcache fill at cycle %d\n", stat_cycles);
+                        // printf("dcache miss (0x%" PRIx64") at cycle %d\n", C_EXECUTE.result, stat_cycles + 1);
                         memoryOperation_basecase(currOp);
+                        printf("dcache hit (0x%" PRIx64") at cycle %d\n", C_EXECUTE.result, stat_cycles + 1);
                         // printf("============================> POST FILL\n");
                     }
                     
@@ -226,9 +230,10 @@
             calculate(currOp);
             int cacheHit = cache_hit(D_CACHE, C_EXECUTE.result);
             if (cacheHit >= 0){
-                printf("DCACHE HIT\n");
+                printf("dcache hit (0x%" PRIx64") at cycle %d\n", C_EXECUTE.result, stat_cycles + 1);
                 memoryOperation_hit(currOp);
             } else {
+                printf("dcache miss (0x%" PRIx64") at cycle %d\n", C_EXECUTE.result, stat_cycles + 1);
                 set_stall(PL_DECODE_INCR_FIFTY);
             }
 
@@ -435,7 +440,7 @@ void memoryOperation_hit(uint32_t currOpp){
     
     /*shortened for 'squash a motherfucker'*/
     void squash(int pl_stage_macro){
-        printf("SQUASH TRIGGERED\n");
+        if (VERBOSE_FLAG) printf("SQUASH TRIGGERED\n");
         switch(pl_stage_macro){
             case PL_STAGE_DECODE:
                 C_DECODE.oppCode = OPP_MACRO_NOP;
@@ -444,20 +449,20 @@ void memoryOperation_hit(uint32_t currOpp){
                 C_FETCH.squash_bit = true;
                 break;
             default:
-                printf("tried to squash a non squashable macro stage\n");
+                if (VERBOSE_FLAG) printf("tried to squash a non squashable macro stage\n");
                 break;
         }
     }
 
     void pseudo_squash(int pl_stage_macro){
-        printf("PSEUDO SQUASH TRIGGERED\n");
+        if (VERBOSE_FLAG) printf("PSEUDO SQUASH TRIGGERED\n");
         switch(pl_stage_macro){
             case PL_STAGE_DECODE:
                 C_FETCH.pseudo_stall_bit = true;
                 C_FETCH.instr = OPP_MACRO_UNK; //<-- this will clear whats in decode
                 break;
             default:
-                printf("tried to squash a non squashable macro stage\n");
+                if (VERBOSE_FLAG) printf("tried to squash a non squashable macro stage\n");
                 break;
         }
     }
@@ -513,8 +518,10 @@ void memoryOperation_hit(uint32_t currOpp){
 
         // //Actual Bit Counts
         int firstEleven = bitMask & hexLine;
-        printf("DECODE: Hexline is %08x\n", hexLine);
-        printf("DECODE: The current opp code in hex is %08x\n", firstEleven);
+        if (VERBOSE_FLAG) {
+            printf("DECODE: Hexline is %08x\n", hexLine);
+            printf("DECODE: The current opp code in hex is %08x\n", firstEleven);
+        }
 
 
 
@@ -645,13 +652,19 @@ void memoryOperation_hit(uint32_t currOpp){
         // printf("FETCH: Currently %d STALL_FOR_CYCLES for start_addr %08x\n", STALL_FOR_CYCLES, STALL_START_ADDR);
         uint32_t currOpp;
         int cacheHit;
+        if (STALL_FOR_CYCLES > 0) printf("icache bubble (%d)\n", STALL_FOR_CYCLES);
         if ((!C_MEMORY.run_bit) || (!C_EXECUTE.run_bit) || (C_MEMORY.bubble_bit)){
             if (STALL_FOR_CYCLES > 0){
                 STALL_FOR_CYCLES -= 1;
-                if ((STALL_FOR_CYCLES == 0) && (STALL_FOR_CYCLES_DCACHE > 1))
+                if (STALL_FOR_CYCLES == 0) printf("icache fill at cycle %d\n", stat_cycles + 1);
+                if ((STALL_FOR_CYCLES == 0) && (STALL_FOR_CYCLES_DCACHE > 1)){
+                    // printf("icache fill at cycle %d\n", stat_cycles);
                     C_DECODE.is_overrideable_bubble = true;
+                    // printf("icache fill at cycle %d\n", stat_cycles);
+                }
             }
-            printf("STALL-FOR_CYCLES %d AND DCACHE STALL %d\n", STALL_FOR_CYCLES, STALL_FOR_CYCLES_DCACHE);
+
+            if (VERBOSE_FLAG) printf("STALL-FOR_CYCLES %d AND DCACHE STALL %d\n", STALL_FOR_CYCLES, STALL_FOR_CYCLES_DCACHE);
             if ((STALL_FOR_CYCLES == 0) && (STALL_FOR_CYCLES_DCACHE == 1) && (C_DECODE.is_overrideable_bubble)){
                 // C_DECODE.predicted_pc = C_FETCH.predicted_pc;
                 // C_DECODE.pc = C_FETCH.pc;
@@ -659,6 +672,7 @@ void memoryOperation_hit(uint32_t currOpp){
                 // C_DECODE.oppCode = get_opp_code(C_FETCH.instr);
                 // C_DECODE.p_taken = C_FETCH.p_taken;
                 fetch_base();
+                printf("icache hit (0x%" PRIx64") at cycle %d\n", CURRENT_STATE.PC - 4, stat_cycles);
             }
             return;
          }
@@ -672,6 +686,8 @@ void memoryOperation_hit(uint32_t currOpp){
             /* Finished Stalling. Actually load mem values in */
             if (STALL_FOR_CYCLES == 0){
                 fetch_base();
+                printf("icache hit (0x%" PRIx64") at cycle %d\n", CURRENT_STATE.PC - 4, stat_cycles + 1);
+
                 // unset_stall(PL_INCREMENT_FIFTY);
                 // cacheHit = cache_hit(I_CACHE, CURRENT_STATE.PC);
                 // currOpp = mem_read_32(CURRENT_STATE.PC);
@@ -692,6 +708,7 @@ void memoryOperation_hit(uint32_t currOpp){
             } else if (STALL_FOR_CYCLES > 0){
                 insert_bubble(PL_STAGE_DECODE);
                 STALL_FOR_CYCLES -= 1;
+                if (STALL_FOR_CYCLES == 0) printf("icache fill at cycle %d\n", stat_cycles + 1);
             }
             return;
         }
@@ -706,11 +723,11 @@ void memoryOperation_hit(uint32_t currOpp){
         uint64_t current_state_index = (CURRENT_STATE.PC & 0x7E0) >> 5;
         uint64_t current_state_tag = (CURRENT_STATE.PC & 0xFFFFFFFFFFFFF800) >> 11;
         cacheHit = cache_hit(I_CACHE, CURRENT_STATE.PC);
-        printf("FETCH: cacheHit is %d\n", cacheHit);
+        if (VERBOSE_FLAG) printf("FETCH: cacheHit is %d\n", cacheHit);
         /*Cache Hit: Load from Cache*/
 		if(cacheHit >= 0)
 		{
-			printf("ICACHE HIT: The index is %d\n", (int) current_state_index);
+			printf("icache hit (0x%" PRIx64") at cycle %d\n", CURRENT_STATE.PC, stat_cycles + 1);
         	/*setting the curOpp to the instruction that is stored then update cache*/
         	uint64_t subblock_mask = (CURRENT_STATE.PC & (0x7 << 2)) >> 2;
         	currOpp = CACHE.i_cache[current_state_index].block[cacheHit].subblock_data[subblock_mask];
@@ -732,7 +749,7 @@ void memoryOperation_hit(uint32_t currOpp){
         /*Cache Miss: Trigger 50 cycle stall*/
 		else
         {
-        	printf("ICACHE MISS asdfas: The index is %d\n", (int) current_state_index);
+        	printf("icache miss (0x%" PRIx64") at cycle %d\n", CURRENT_STATE.PC, stat_cycles + 1);
 
             set_stall(PL_INCREMENT_FIFTY);
 
@@ -772,19 +789,19 @@ void memoryOperation_hit(uint32_t currOpp){
         
         switch(start_stage){
             case PL_STAGE_FETCH:
-                printf("PL_STAGE_FETCH STALL SET\n");
+                if (VERBOSE_FLAG) printf("PL_STAGE_FETCH STALL SET\n");
                 //set just fetch stall
                 C_FETCH.stall_bit = true;
                 break;
             case PL_STAGE_DECODE:
-                printf("PL_STAGE_DECODE STALL SET\n");
+                if (VERBOSE_FLAG) printf("PL_STAGE_DECODE STALL SET\n");
                 //set decode stall
                 C_EXECUTE.branch_stall_bit = true;
                 C_FETCH.stall_bit = true;
                 C_DECODE.stall_bit = true;
                 break;
             case PL_STAGE_EXECUTE:
-                printf("PL_STAGE_EXECUTE STALL SET\n");
+                if (VERBOSE_FLAG) printf("PL_STAGE_EXECUTE STALL SET\n");
                 //set execute stall
                 C_FETCH.stall_bit = true;
                 C_DECODE.stall_bit = true;
@@ -793,7 +810,7 @@ void memoryOperation_hit(uint32_t currOpp){
                 C_FETCH.bounce_bit = true;
                 break;
             case PL_STAGE_MEMORY:
-                printf("PL_STAGE_MEMORY STALL SET\n");
+                if (VERBOSE_FLAG) printf("PL_STAGE_MEMORY STALL SET\n");
                 //set memory stall
                 C_FETCH.stall_bit = true;
                 C_DECODE.stall_bit = true;
@@ -801,7 +818,7 @@ void memoryOperation_hit(uint32_t currOpp){
                 C_MEMORY.stall_bit = true;
                 break;
             case PL_STAGE_WRITE:
-                printf("PL_STAGE_WRITE STALL SET\n");
+                if (VERBOSE_FLAG) printf("PL_STAGE_WRITE STALL SET\n");
                 /*I'm not quite sure when you would execute a stall on write?!?!?!
                 Leaving it here for consistency reasons*/
                 C_FETCH.stall_bit = true;
@@ -812,7 +829,7 @@ void memoryOperation_hit(uint32_t currOpp){
                 printf("Error, attempted stall at WB stage");
                 break;
             case PL_INCREMENT_FIFTY:
-                printf("PL_INCREMENT_FIFTY STALL SET\n");
+                if (VERBOSE_FLAG) printf("PL_INCREMENT_FIFTY STALL SET\n");
                 C_FETCH.stall_bit = true;
                 // C_DECODE.stall_bit = true;
                 // C_EXECUTE.stall_bit = true;
@@ -823,7 +840,7 @@ void memoryOperation_hit(uint32_t currOpp){
 
                 break;
             case PL_DECODE_INCR_FIFTY:
-                printf("PL_DECODE_INCR_FIFTY STALL SET\n");
+                if (VERBOSE_FLAG) printf("PL_DECODE_INCR_FIFTY STALL SET\n");
                 // C_FETCH.stall_bit = true;
                 C_DECODE.stall_bit = true;
                 C_EXECUTE.stall_bit = true;
@@ -842,7 +859,7 @@ void memoryOperation_hit(uint32_t currOpp){
     void unset_stall(int start_stage){
         switch(start_stage){
             case PL_INCREMENT_FIFTY:
-                printf("unincrement fifty\n");
+                if (VERBOSE_FLAG) printf("unincrement fifty\n");
                 C_FETCH.stall_bit = false;
                 C_DECODE.stall_bit = false;
                 C_DECODE.bubble_bit = false;
@@ -853,7 +870,7 @@ void memoryOperation_hit(uint32_t currOpp){
                 break;
 
             case PL_STAGE_MEMORY:
-                printf("unset pl_stage_memory\n");
+                if (VERBOSE_FLAG) printf("unset pl_stage_memory\n");
                 C_FETCH.stall_bit = false;
                 C_DECODE.bubble_bit = false;
                 C_DECODE.stall_bit = false;
@@ -861,7 +878,7 @@ void memoryOperation_hit(uint32_t currOpp){
                 C_MEMORY.bubble_bit = false;
                 break;
             case PL_DECODE_INCR_FIFTY:
-                printf("ending dcache stall\n");
+                if (VERBOSE_FLAG) printf("ending dcache stall\n");
                 // C_FETCH.stall_bit = false;
                 C_DECODE.stall_bit = false;
                 C_EXECUTE.stall_bit = false;
@@ -872,7 +889,7 @@ void memoryOperation_hit(uint32_t currOpp){
                 STALL_FOR_CYCLES_DCACHE = 0;
                 break;
             default:
-                printf("You are trying to unstall an invalid stage\n");
+                if (VERBOSE_FLAG) printf("You are trying to unstall an invalid stage\n");
                 break;
         }
     }
@@ -909,7 +926,7 @@ void memoryOperation_hit(uint32_t currOpp){
     void insert_bubble(int at_stage){
         switch(at_stage){
             case PL_STAGE_DECODE:
-                printf("bubble inserted\n");
+                if (VERBOSE_FLAG) printf("bubble inserted\n");
 
                 C_FETCH.stall_bit = true;
                 C_DECODE.bubble_bit = true;
@@ -922,7 +939,7 @@ void memoryOperation_hit(uint32_t currOpp){
             as the above, but this is a bubble that is executed from a STALL, and not 
             as a result of a cache miss*/
             case PL_STAGE_MEMORY:
-                printf("RAW bubble inserted\n");
+                if (VERBOSE_FLAG) printf("RAW bubble inserted\n");
                 C_FETCH.stall_bit = true;
                 C_DECODE.stall_bit = true;
                 C_EXECUTE.stall_bit = true;
@@ -933,7 +950,7 @@ void memoryOperation_hit(uint32_t currOpp){
                 // STALL_FOR_CYCLES = 1;
                 break;
             default:
-                printf("You are trying to unstall an invalid stage\n");
+                if (VERBOSE_FLAG)  printf("You are trying to unstall an invalid stage\n");
                 break;
             }
     }
@@ -943,19 +960,19 @@ void memoryOperation_hit(uint32_t currOpp){
 *******************************************************************/
 
     uint64_t forward(int register_number){
-        printf("FORWARD: forward on register_number -----> %d\n", register_number);
+        if (VERBOSE_FLAG) printf("FORWARD: forward on register_number -----> %d\n", register_number);
         int64_t register_value = CURRENT_STATE.REGS[register_number];
-        printf("FORWARD: register_value %d for register %d\n", (int) register_value, register_number);
+        if (VERBOSE_FLAG) printf("FORWARD: register_value %d for register %d\n", (int) register_value, register_number);
         /*Check for wb forward*/
         int wb_reg = C_WRITE.resultRegister;
         if (wb_reg == register_number){
-            printf("FORWARD: WB FORWARD TRIGGERED\n");
+            if (VERBOSE_FLAG) printf("FORWARD: WB FORWARD TRIGGERED\n");
 
 
             //Check if the value in the WRITE stage is the same register
             register_value = C_WRITE.result; 
         }
-        printf("FORWARD: returning WRITE mem forward %d\n", (int) register_value);
+        if (VERBOSE_FLAG) printf("FORWARD: returning WRITE mem forward %d\n", (int) register_value);
         /*Check for mem forward*/
         int mem_reg = C_MEMORY.resultRegister;
         if (mem_reg == register_number){
@@ -964,7 +981,7 @@ void memoryOperation_hit(uint32_t currOpp){
             //registers are the same and we SHOULD forward ONE OF THE OPERANDS
             register_value = C_MEMORY.result; 
         }
-        printf("FORWARD: returning MEMORY forward %d\n", (int) register_value);
+        if (VERBOSE_FLAG) printf("FORWARD: returning MEMORY forward %d\n", (int) register_value);
 
         return register_value;
     }
@@ -1130,13 +1147,11 @@ void memoryOperation_hit(uint32_t currOpp){
     }
 
     int same_subblock(uint64_t stall_start_addr, uint64_t test_addr){
-        printf("<------------\n");
         int i;
         int flag = false;
         for (i = 0; i < 8; i ++){
             if (test_addr == stall_start_addr + (i * 4)){
                 flag = true;
-                printf("*********************************SAME SUBBLOCK\n");
             }
 
         }

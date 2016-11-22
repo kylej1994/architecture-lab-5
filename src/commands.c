@@ -53,16 +53,16 @@ uint64_t signExtend(int32_t data){
 
 uint64_t signExtendImm(int32_t data, int extend_bit_at){
     int32_t max_bit = 0x1 << (extend_bit_at - 1);
-    printf("max_bit is %08x\n", (int32_t)max_bit);
-    printf("data    is %08x\n", data);
+    if (VERBOSE_FLAG) printf("max_bit is %08x\n", (int32_t)max_bit);
+    if (VERBOSE_FLAG) printf("data    is %08x\n", data);
     if (max_bit & data){
         uint64_t mask = (-1 << extend_bit_at); //0xFF...
         int64_t result = mask | data;
-        printf("mask is %08x\n", (int32_t) mask);
-        printf("result is %08x\n", (int32_t)result);
+        if (VERBOSE_FLAG) printf("mask is %08x\n", (int32_t) mask);
+        if (VERBOSE_FLAG) printf("result is %08x\n", (int32_t)result);
         return result;
     }else{
-        printf("else statement triggered\n");
+        if (VERBOSE_FLAG) printf("else statement triggered\n");
         return (uint64_t)data;
     }
 }
@@ -78,7 +78,7 @@ void add(uint32_t hexLine){
     exec_stall(rM);
     uint64_t rN_v = forward(rN);
     uint64_t rM_v = forward(rM);
-    printf("rN is %d and rM is %d and rD is %d\n", rN, rM, rD);
+    if (VERBOSE_FLAG) printf("rN is %d and rM is %d and rD is %d\n", rN, rM, rD);
     int64_t result  = rN_v + rM_v;
     if (rD == 31){
         C_EXECUTE.resultRegister = STACK_POINTER;
@@ -92,7 +92,7 @@ void add(uint32_t hexLine){
 }
 
 void addi(uint32_t hexLine){
-    printf("add immediate executed\n");
+    if (VERBOSE_FLAG) printf("add immediate executed\n");
     int rD = 0x0000001F & hexLine;
     int rN = (0x000003E0 & hexLine) >> 5;
     int shiftType = (0x00C00000 & hexLine) >> 22;
@@ -100,7 +100,7 @@ void addi(uint32_t hexLine){
     imm = zeroExtend(imm);
     exec_stall(rN);
     uint64_t rN_v = forward(rN);
-    printf("rN is %d and rD is %d\n", rN, rD);
+    if (VERBOSE_FLAG) printf("rN is %d and rD is %d\n", rN, rD);
     int64_t result  = rN_v + imm;
     if (rD == 31){
         C_EXECUTE.resultRegister = STACK_POINTER;
@@ -121,7 +121,7 @@ void adds(uint32_t hexLine){
     exec_stall(rM);
     uint64_t rN_v = forward(rN);
     uint64_t rM_v = forward(rM);
-    printf("rN is %d and rM is %d and rD is %d\n", rN, rM, rD);
+    if (VERBOSE_FLAG) printf("rN is %d and rM is %d and rD is %d\n", rN, rM, rD);
     int64_t result  = rN_v + rM_v;
     //NEXT_STATE.REGS[rD] = result;
     C_EXECUTE.resultRegister = rD;
@@ -158,7 +158,7 @@ void addis(uint32_t hexLine){
     int imm = (0x003FFC00 & hexLine) >> 10;
     imm = zeroExtend(imm);
 
-    printf("rN is %d and rD is %d\n", rN, rD);
+    if (VERBOSE_FLAG) printf("rN is %d and rD is %d\n", rN, rD);
     exec_stall(rN);
     uint64_t rN_v = forward(rN);
     int64_t result  = rN_v + imm;
@@ -189,7 +189,7 @@ void addis(uint32_t hexLine){
 
 
 void and(uint32_t hexLine){
-    printf("Currently in AND\n");
+    if (VERBOSE_FLAG) printf("Currently in AND\n");
     int rD = 0x0000001F & hexLine;
     int rN = (0x000003E0 & hexLine) >> 5;
     int rM = (0x001F0000 & hexLine) >> 16;
@@ -201,14 +201,14 @@ void and(uint32_t hexLine){
     int shiftMask = 0x00C00000;
     int shiftType = (shiftMask & hexLine) >> 22;
 
-    printf("rN is %d and rM is %d and rD is %d and imm is %d\n", rN, rM, rD, shiftamnt);
+    if (VERBOSE_FLAG) printf("rN is %d and rM is %d and rD is %d and imm is %d\n", rN, rM, rD, shiftamnt);
     int64_t result = rN_v & shiftReg(rM_v, shiftType, shiftamnt);
     C_EXECUTE.resultRegister = rD;
     C_EXECUTE.result = result;
     return;
 }
 void ands(uint32_t hexLine){
-    printf("Currently in ANDS\n");
+    if (VERBOSE_FLAG) printf("Currently in ANDS\n");
     int rD = 0x0000001F & hexLine;
     int rN = (0x000003E0 & hexLine) >> 5;
     int rM = (0x001F0000 & hexLine) >> 16;
@@ -305,9 +305,11 @@ void branchCond(uint64_t hexLine){
     
     int imm19 = ((0x00FFFFE0 & hexLine) >> 5);
     int64_t signExtended = signExtendImm(imm19, 19) * 4;
-    printf("signExtended is 0x%" PRIx64 "\n", signExtended);
-    printf("Signextended as an integer is %" PRId64 "\n", signExtended);
-    printf("Signextended as a 32 bit intger is %d\n", (int32_t)signExtended);
+    if (VERBOSE_FLAG) {
+        printf("signExtended is 0x%" PRIx64 "\n", signExtended);
+        printf("Signextended as an integer is %" PRId64 "\n", signExtended);
+        printf("Signextended as a 32 bit intger is %d\n", (int32_t)signExtended);
+    }
     int cond = (0x0000000F & hexLine);
     int macro;
     switch (cond){
@@ -330,7 +332,7 @@ void branchCond(uint64_t hexLine){
             macro = OPP_MACRO_BLE;
             break;
         default:
-            printf("This code does not exist\n");
+            if (VERBOSE_FLAG) printf("This code does not exist\n");
             break;
     }
     int result = 0;
@@ -361,38 +363,38 @@ void branchCond(uint64_t hexLine){
     }
     uint64_t FETCH_PC = CURRENT_STATE.PC;
     if (result){
-        printf("BRANCHCOND: BRANCH PC                : 0x%" PRIx64 "\n", C_EXECUTE.pc);
-        printf("BRANCHCOND: PREDICTED PC                : 0x%" PRIx64 "\n", C_EXECUTE.predicted_pc);
-        printf("BRANCHCOND: PC                : 0x%" PRIx64 "\n", CURRENT_STATE.PC);
+        if (VERBOSE_FLAG) printf("BRANCHCOND: BRANCH PC                : 0x%" PRIx64 "\n", C_EXECUTE.pc);
+        if (VERBOSE_FLAG) printf("BRANCHCOND: PREDICTED PC                : 0x%" PRIx64 "\n", C_EXECUTE.predicted_pc);
+        if (VERBOSE_FLAG) printf("BRANCHCOND: PC                : 0x%" PRIx64 "\n", CURRENT_STATE.PC);
         if (!C_EXECUTE.p_taken){
-        	printf("BRANCHCOND: Branch taken, predicted not taken\n");
+        	if (VERBOSE_FLAG) printf("BRANCHCOND: Branch taken, predicted not taken\n");
         	CURRENT_STATE.PC = C_EXECUTE.pc + signExtended; 
             bp_update(C_EXECUTE.pc, CURRENT_STATE.PC, true, true); 	
         	if (C_EXECUTE.predicted_pc != CURRENT_STATE.PC)
         		squash(PL_STAGE_DECODE);
         } 
         else {
-        		printf("BRANCHCOND: Branch taken, predicted taken\n");
+        		if (VERBOSE_FLAG) printf("BRANCHCOND: Branch taken, predicted taken\n");
         		CURRENT_STATE.PC = C_EXECUTE.predicted_pc + 4;
                 bp_update(C_EXECUTE.pc, CURRENT_STATE.PC - 4, true, true); 
 	   }
-        printf("BRANCHCOND: PC                : 0x%" PRIx64 "\n", CURRENT_STATE.PC);
-        printf("BRANCHCOND: BCOND evaluated to TRUE\n");
+        if (VERBOSE_FLAG) printf("BRANCHCOND: PC                : 0x%" PRIx64 "\n", CURRENT_STATE.PC);
+        if (VERBOSE_FLAG) printf("BRANCHCOND: BCOND evaluated to TRUE\n");
         C_EXECUTE.pc = CURRENT_STATE.PC;
     } 
     else{
-        printf("BRANCHCOND: BCOND evaluated to FALSE\n");
+        if (VERBOSE_FLAG) printf("BRANCHCOND: BCOND evaluated to FALSE\n");
         if (C_EXECUTE.p_taken){
-            printf("BRANCHCOND: Branch not taken, predict branch taken\n");
+            if (VERBOSE_FLAG) printf("BRANCHCOND: Branch not taken, predict branch taken\n");
             CURRENT_STATE.PC = C_EXECUTE.pc + 4;
            if (CURRENT_STATE.PC != C_EXECUTE.predicted_pc)
 		      squash(PL_STAGE_DECODE);
 	    } else{
-            printf("BRANCHCOND: Branch not taken, predict branch not taken\n");
+            if (VERBOSE_FLAG) printf("BRANCHCOND: Branch not taken, predict branch not taken\n");
         }
         bp_update(C_EXECUTE.pc, CURRENT_STATE.PC, false, true);
-        printf("BRANCHCOND: CURRENT_STATE.PC                : 0x%" PRIx64 "\n", CURRENT_STATE.PC);
-        printf("BRANCHCOND: C_DECODE.PC                : 0x%" PRIx64 "\n", C_FETCH.pc);
+        if (VERBOSE_FLAG) printf("BRANCHCOND: CURRENT_STATE.PC                : 0x%" PRIx64 "\n", CURRENT_STATE.PC);
+        if (VERBOSE_FLAG) printf("BRANCHCOND: C_DECODE.PC                : 0x%" PRIx64 "\n", C_FETCH.pc);
         /* If you predict you would take the branch, but did not take it then clear pipeline*/
 
     }
@@ -401,7 +403,7 @@ void branchCond(uint64_t hexLine){
         // if (FETCH_PC != CURRENT_STATE.PC)
         //     unset_stall(PL_INCREMENT_FIFTY);
         if (!same_subblock(FETCH_PC, CURRENT_STATE.PC)){
-            printf("BRANCHCOND: SHORT-CIRCUIT STALL\n");
+            if (VERBOSE_FLAG) printf("BRANCHCOND: SHORT-CIRCUIT STALL\n");
             unset_stall(PL_INCREMENT_FIFTY);
         }
     }
@@ -418,40 +420,40 @@ void cbznz(uint64_t hexLine, int isnz){
     /* Taken Case */
     if (isZero){
         int64_t offset = signExtendImm(imm19, 19) * 4;
-        printf("BRANCH PC                : 0x%" PRIx64 "\n", C_EXECUTE.pc);
-        printf("PREDICTED PC                : 0x%" PRIx64 "\n", C_EXECUTE.predicted_pc);
-        printf("PC                : 0x%" PRIx64 "\n", CURRENT_STATE.PC);
+        if (VERBOSE_FLAG) printf("BRANCH PC                : 0x%" PRIx64 "\n", C_EXECUTE.pc);
+        if (VERBOSE_FLAG) printf("PREDICTED PC                : 0x%" PRIx64 "\n", C_EXECUTE.predicted_pc);
+        if (VERBOSE_FLAG) printf("PC                : 0x%" PRIx64 "\n", CURRENT_STATE.PC);
         if (!C_EXECUTE.p_taken){
-            printf("Branch taken, predicted not taken\n");
+            if (VERBOSE_FLAG) printf("Branch taken, predicted not taken\n");
             CURRENT_STATE.PC = C_EXECUTE.pc + offset; 
             bp_update(C_EXECUTE.pc, CURRENT_STATE.PC, true, true);  
             if (C_EXECUTE.predicted_pc != CURRENT_STATE.PC)
                 squash(PL_STAGE_DECODE);
         } 
         else {
-                printf("Branch taken, predicted taken\n");
+                if (VERBOSE_FLAG) printf("Branch taken, predicted taken\n");
                 CURRENT_STATE.PC = C_EXECUTE.predicted_pc + 4;
                 bp_update(C_EXECUTE.pc, CURRENT_STATE.PC - 4, true, true); 
        }
-        printf("PC                : 0x%" PRIx64 "\n", CURRENT_STATE.PC);
+        if (VERBOSE_FLAG) printf("PC                : 0x%" PRIx64 "\n", CURRENT_STATE.PC);
         // bp_update(C_EXECUTE.pc, CURRENT_STATE.PC, true, true); 
-        printf("The pc is at %" PRIu64 "\n", CURRENT_STATE.PC);
-        printf("CBZ/CBNZ evaluated to TRUE\n");
+        if (VERBOSE_FLAG) printf("The pc is at %" PRIu64 "\n", CURRENT_STATE.PC);
+        if (VERBOSE_FLAG) printf("CBZ/CBNZ evaluated to TRUE\n");
         C_EXECUTE.pc = CURRENT_STATE.PC;
     /*Not taken case*/
     } else{
-        printf("CBZ/CBNZ evaluated to FALSE\n");
+        if (VERBOSE_FLAG) printf("CBZ/CBNZ evaluated to FALSE\n");
         if (C_EXECUTE.p_taken){
-            printf("Branch not taken, predict branch taken\n");
+            if (VERBOSE_FLAG) printf("Branch not taken, predict branch taken\n");
             CURRENT_STATE.PC = C_EXECUTE.pc + 4;
            if (CURRENT_STATE.PC != C_EXECUTE.predicted_pc)
               squash(PL_STAGE_DECODE);
         } else{
-            printf("Branch not taken, predict branch not taken\n");
+            if (VERBOSE_FLAG) printf("Branch not taken, predict branch not taken\n");
         }
         bp_update(C_EXECUTE.pc, CURRENT_STATE.PC, false, true);
-        printf("CURRENT_STATE.PC                : 0x%" PRIx64 "\n", CURRENT_STATE.PC);
-        printf("C_DECODE.PC                : 0x%" PRIx64 "\n", C_FETCH.pc);
+        if (VERBOSE_FLAG) printf("CURRENT_STATE.PC                : 0x%" PRIx64 "\n", CURRENT_STATE.PC);
+        if (VERBOSE_FLAG) printf("C_DECODE.PC                : 0x%" PRIx64 "\n", C_FETCH.pc);
         /* If you predict you would take the branch, but did not take it then clear pipeline*/
     }
     if (STALL_FOR_CYCLES > 0){
@@ -480,7 +482,7 @@ void ldur(uint64_t hexLine){
     address = address + imm9;
     uint64_t result = address; 
     C_EXECUTE.resultRegister = rt;
-    printf("result register is %d\n", C_EXECUTE.resultRegister);
+    if (VERBOSE_FLAG) printf("result register is %d\n", C_EXECUTE.resultRegister);
     C_EXECUTE.result = result;
     return;
 }
@@ -518,7 +520,7 @@ shift rn to the right the shift amount
 **/
 void lsli(uint32_t hexline)
 {
-    printf("lsli\n");
+    if (VERBOSE_FLAG) printf("Shifting immediate function triggered\n");
     int rD = 0x0000001F & hexline;
     int rN = (0x000003E0 & hexline) >> 5;
     int immr = ((0X3F << 16) & hexline) >> 16;
@@ -527,14 +529,14 @@ void lsli(uint32_t hexline)
     //right shift
     int shift = (0X1F <<10  & hexline) >> 10;
     if (shift == 0X1F){
-        printf("right shift triggered\n");
+        if (VERBOSE_FLAG) printf("right shift triggered\n");
         uint64_t result = ((unsigned) rN_v >> immr);
         C_EXECUTE.resultRegister = rD;
         C_EXECUTE.result = result;
         return;
     }
     //left shift
-    printf("left shift triggered by amount %d\n", immr);
+    if (VERBOSE_FLAG) printf("left shift triggered by amount %d\n", immr);
     uint64_t result = shiftReg(rN_v, 0, (~immr +1));
     //printf(" value %" PRIu64 " placed in dest register\n", result);
     C_EXECUTE.resultRegister = rD;
@@ -544,7 +546,7 @@ void lsli(uint32_t hexline)
 
 void lsl(uint64_t hexline)
 {
-    printf("lsl\n");
+    if (VERBOSE_FLAG) printf("Shifting function triggered\n");
     int rM = (0x001F0000 & hexline) >> 16;
     int rN = (0x000003E0 & hexline) >> 5;
     int rD = 0x0000001F & hexline;
@@ -554,14 +556,14 @@ void lsl(uint64_t hexline)
     int shiftType = (0X0000FC00  & hexline) >> 10;
     //Right shift case
     if (shiftType == 0x9){
-        printf("lsr shift\n");
+        if (VERBOSE_FLAG) printf("lsr shift\n");
         uint64_t result = shiftReg(rN_v, 4 , shiftamnt); //shiftReg(CURRENT_STATE.REGS[rN], 4, imm21_16);
         C_EXECUTE.result = result;
         C_EXECUTE.resultRegister = rD;
         return;
     }
     //Left shift case
-    printf("lsl shift by amount %d\n", shiftamnt);
+    if (VERBOSE_FLAG) printf("lsl shift by amount %d\n", shiftamnt);
     uint64_t result = shiftReg(rN_v, 0, shiftamnt); //shiftReg(CURRENT_STATE.REGS[rN], 0, imm21_16);    
     C_EXECUTE.result = result;
     C_EXECUTE.resultRegister = rD;
@@ -593,7 +595,7 @@ void movz(uint64_t hexline)
             C_EXECUTE.result =  shiftReg(C_EXECUTE.result, 0, hw*16);
             break;
         default:
-            printf("MOVZ did not process correctly");
+            if (VERBOSE_FLAG) printf("MOVZ did not process correctly");
     }
     return;
 }
@@ -743,7 +745,7 @@ void subi(uint32_t hexline)
             value =  rN_v - imm21_10;
             break;
         default:
-            printf("SUBI did not process correctly");
+            if (VERBOSE_FLAG) printf("SUBI did not process correctly");
     }
     
     C_EXECUTE.result = value;
@@ -761,12 +763,14 @@ void subs(uint32_t hexline)
     exec_stall(rM);
     int64_t rN_v = forward(rN);
     int64_t rM_v = forward(rM);
-    printf("CURRENT_STATE.REGS[0]: %d\n", (int) CURRENT_STATE.REGS[0]);
-    printf("rN is %d and rM is %d and rD is %d\n", rN, rM, rD);
-    printf("SUBS: rN_v %d, rM_v %d\n", (int) rN_v, (int) rM_v);
+    if (VERBOSE_FLAG) {
+        printf("CURRENT_STATE.REGS[0]: %d\n", (int) CURRENT_STATE.REGS[0]);
+        printf("rN is %d and rM is %d and rD is %d\n", rN, rM, rD);
+        printf("SUBS: rN_v %d, rM_v %d\n", (int) rN_v, (int) rM_v);
+    }
     int64_t result = 0;
     result =  rN_v - rM_v;
-    printf("result is %" PRId64 "\n", result);
+    if (VERBOSE_FLAG) printf("result is %" PRId64 "\n", result);
     C_EXECUTE.result = result;
     C_EXECUTE.resultRegister = rD;
     
@@ -806,7 +810,7 @@ void subsi(uint32_t hexline)
     uint64_t rN_v = forward(rN);
     int shift = ((0X3) << 21 & hexline) >> 21;
     uint64_t result = 0; 
-    printf("rN is %d and rM is %d and rD is %d\n", rN, rM, rD);
+    if (VERBOSE_FLAG) printf("rN is %d and rM is %d and rD is %d\n", rN, rM, rD);
 
     switch(shift){
         case 0:
@@ -816,7 +820,7 @@ void subsi(uint32_t hexline)
             result = rN_v - (imm21_10 << 12);
             break;
         default :
-            printf("SUBIS did not process correctly");
+            if (VERBOSE_FLAG) printf("SUBIS did not process correctly");
     }
 
     C_EXECUTE.result = result;

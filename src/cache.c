@@ -87,7 +87,7 @@ int cache_hit(int cache_type, uint64_t addr)
     }
     else if (cache_type == D_CACHE)
     {
-        printf("CACHE CHECK: DCACHE CASE\n");
+        if (VERBOSE_FLAG) printf("CACHE CHECK: DCACHE CASE\n");
         cache_index = (addr & 0x1FE0) >> 5; // bits [12:5] of the PC, will be between 0-255
         cache_tag = (addr & 0xFFFFFFFFFFFFE000) >> 11; // find the tag
 
@@ -103,14 +103,14 @@ int cache_hit(int cache_type, uint64_t addr)
     }
     else
     {
-        printf("cache_hit: ERROR, not a recognized cache type");
+        if (VERBOSE_FLAG) printf("cache_hit: ERROR, not a recognized cache type");
     }
     return -1; // cache miss
 }
 
 void cache_evict(int cache_type, uint64_t cache_index, uint64_t tag)
 {
-    printf("CACHE EVICT: eviction triggered\n");
+    if (VERBOSE_FLAG) printf("CACHE EVICT: eviction triggered\n");
 	int i, j;
     if (cache_type == I_CACHE){
     	for (i = 0; i < ICACHE_SUBBLOCKS_PER_SET; i++)
@@ -131,7 +131,7 @@ void cache_evict(int cache_type, uint64_t cache_index, uint64_t tag)
             }
     }
     else{
-        printf("CACHE EVICT: DCACHE EVICTION TRIGGERED\n");
+        if (VERBOSE_FLAG) printf("CACHE EVICT: DCACHE EVICTION TRIGGERED\n");
         for (i = 0; i < DCACHE_SUBBLOCKS_PER_SET; i++)
             {
                 // printf("CACHE.d_cache[cache_index].block[i].tag %" PRIx64 " and tag %" PRIx64 "\n", CACHE.d_cache[cache_index].block[i].tag, tag);

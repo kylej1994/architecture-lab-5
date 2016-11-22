@@ -14,7 +14,7 @@
 uint64_t bp_predict(uint64_t pc)
 {
     // printf("PREDICT: the address tag value in 03db is%" PRIx64 "\n", BPT.btb[0x3db].address_tag);
-    printf("PREDICT: predict entered for PC %" PRIx64 "\n", pc);
+    if (VERBOSE_FLAG) printf("PREDICT: predict entered for PC %" PRIx64 "\n", pc);
     /* Index into BPT*/
     uint32_t bptMask = 0x00000FFC;
     uint32_t bptindex = (bptMask & pc) >> 2;
@@ -25,14 +25,14 @@ uint64_t bp_predict(uint64_t pc)
     {   
         CURRENT_STATE.PC += 4;
         C_FETCH.p_taken = false;
-        printf("PREDICT: predict exited for PC %" PRIx64 " valid bit\n", CURRENT_STATE.PC); 
+        if (VERBOSE_FLAG) printf("PREDICT: predict exited for PC %" PRIx64 " valid bit\n", CURRENT_STATE.PC); 
         return;
     }
     //Check if address tags match
     if (entry.address_tag != pc){
         CURRENT_STATE.PC += 4;
         C_FETCH.p_taken = false;
-        printf("PREDICT: predict exited for PC %" PRIx64 " address tag\n", CURRENT_STATE.PC); 
+        if (VERBOSE_FLAG) printf("PREDICT: predict exited for PC %" PRIx64 " address tag\n", CURRENT_STATE.PC); 
         return;
     }
     /*Now we know there's a hit.*/
@@ -56,11 +56,11 @@ uint64_t bp_predict(uint64_t pc)
     if ((!entry.cond_bit) || (gshareTaken)){
         CURRENT_STATE.PC = entry.target;
         C_FETCH.p_taken = true;
-        printf("PREDICT: predict exited for PC %" PRIx64 " jump\n", CURRENT_STATE.PC); 
+        if (VERBOSE_FLAG) printf("PREDICT: predict exited for PC %" PRIx64 " jump\n", CURRENT_STATE.PC); 
         return;
     } 
     CURRENT_STATE.PC += 4;
-    printf("PREDICT: pc as hex is %" PRIx64 "\n", pc);
+    if (VERBOSE_FLAG) printf("PREDICT: pc as hex is %" PRIx64 "\n", pc);
     C_FETCH.p_taken = false;
     return; //else case
 
@@ -70,7 +70,7 @@ uint64_t bp_predict(uint64_t pc)
 was fetched*/
 void bp_update(uint64_t pc, int64_t target, int taken, int is_cond)
 {
-    printf("UPDATE: update entered for PC %" PRIx64 "\n", pc);
+    if (VERBOSE_FLAG) printf("UPDATE: update entered for PC %" PRIx64 "\n", pc);
     /* Index into BPT*/
     uint32_t bptMask = 0x00000FFC;
     uint32_t bptindex = (bptMask & pc) >> 2;
