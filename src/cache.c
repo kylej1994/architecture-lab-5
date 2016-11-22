@@ -81,6 +81,7 @@ int cache_hit(int cache_type, uint64_t addr)
             
     		if (CACHE.i_cache[cache_index].block[i].tag == cache_tag)
         	{ // if the valid bit for a subblock is 1, and the tag matches
+                // printf("icache hit (0x%" PRIx64") at cycle %d\n", CURRENT_STATE.PC, stat_cycles);
             	return i;                                   
         	}
     	}
@@ -105,6 +106,7 @@ int cache_hit(int cache_type, uint64_t addr)
     {
         if (VERBOSE_FLAG) printf("cache_hit: ERROR, not a recognized cache type");
     }
+    // printf("icache miss (0x%" PRIx64") at cycle %d\n", CURRENT_STATE.PC, stat_cycles);
     return -1; // cache miss
 }
 

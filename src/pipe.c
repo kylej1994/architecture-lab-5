@@ -146,6 +146,7 @@
     //If it does not then do nothing
     void pipe_stage_mem()
     {
+
         if (STALL_FOR_CYCLES_DCACHE > 0) printf("dcache stall (%d)\n", STALL_FOR_CYCLES_DCACHE);
         if (C_MEMORY.bubble_bit){
             if (VERBOSE_FLAG)  printf("MEM: number of dcache stall cycles entering loop %d \n", STALL_FOR_CYCLES_DCACHE);
@@ -176,11 +177,9 @@
                         printf("dcache hit (0x%" PRIx64") at cycle %d\n", C_EXECUTE.result, stat_cycles + 1);
                     } else {
                         if (VERBOSE_FLAG) printf("DCACHE MISS\n");
-                        printf("dcache fill at cycle %d\n", stat_cycles);
                         // printf("dcache miss (0x%" PRIx64") at cycle %d\n", C_EXECUTE.result, stat_cycles + 1);
                         memoryOperation_basecase(currOp);
                         printf("dcache hit (0x%" PRIx64") at cycle %d\n", C_EXECUTE.result, stat_cycles + 1);
-                        // printf("============================> POST FILL\n");
                     }
                     
                     /*Check for store after load stalls*/
@@ -203,6 +202,10 @@
             }else {
                 /* insert bubble*/
                 STALL_FOR_CYCLES_DCACHE -= 1;
+                if (STALL_FOR_CYCLES_DCACHE == 0) {
+                    printf("dcache fill at cycle %d\n", stat_cycles);
+                    //unset_stall(PL_DECODE_INCR_FIFTY);
+                }   
                 if (VERBOSE_FLAG) printf("MEMORY: number of stall cycles after decrement %d \n", STALL_FOR_CYCLES_DCACHE);
             }
             return;
@@ -224,7 +227,6 @@
 
         uint32_t currOp = C_EXECUTE.oppCode;
         uint32_t instr = C_MEMORY.instr;
-
         if (is_memory(currOp)){
 
             calculate(currOp);
@@ -236,7 +238,6 @@
                 printf("dcache miss (0x%" PRIx64") at cycle %d\n", C_EXECUTE.result, stat_cycles + 1);
                 set_stall(PL_DECODE_INCR_FIFTY);
             }
-
             //CHECK IF OPERATING ON SAME REGISTERS, THEN DONE WITH STALL
             /* Check for Stalls. <---- is this ordering correct? should the op go first? */
 
@@ -259,6 +260,76 @@
 
     }
     
+//////////////////////////////////////////////////////////////////////////////
+    // void pipe_stage_mem()
+    // {
+    //     if (STALL_FOR_CYCLES_DCACHE > 0) printf("dcache stall (%d)\n", STALL_FOR_CYCLES_DCACHE);
+    //     if (C_MEMORY.bubble_bit){
+    //         if (VERBOSE_FLAG)  printf("MEM: number of dcache stall cycles entering loop %d \n", STALL_FOR_CYCLES_DCACHE);
+    //         if (STALL_FOR_CYCLES_DCACHE  > 0){
+    //             /* insert bubble*/
+    //             STALL_FOR_CYCLES_DCACHE -= 1;
+    //             if (STALL_FOR_CYCLES_DCACHE == 0) {
+    //                 printf("dcache fill at cycle %d\n", stat_cycles);
+    //                 unset_stall(PL_DECODE_INCR_FIFTY);
+    //             }   
+    //             if (VERBOSE_FLAG) printf("MEMORY: number of stall cycles after decrement %d \n", STALL_FOR_CYCLES_DCACHE);
+    //         return;
+    //         }
+    //     }
+    //     if (C_MEMORY.stall_bit)
+    //         return;
+    //     if (!RUN_BIT)
+    //         return;
+    //     C_MEMORY.oppCode = C_EXECUTE.oppCode;
+    //     C_MEMORY.instr = C_EXECUTE.instr;
+    //     C_MEMORY.pc = C_EXECUTE.pc;
+    //     C_MEMORY.retired = C_EXECUTE.retired;
+    //     C_MEMORY.run_bit = C_EXECUTE.run_bit;
+    //     //Set flags equal to flags for execute
+    //     C_MEMORY.FLAG_Z = C_EXECUTE.FLAG_Z;
+    //     C_MEMORY.FLAG_N = C_EXECUTE.FLAG_N;
+    //     C_MEMORY.FLAG_C = C_EXECUTE.FLAG_C;
+    //     C_MEMORY.FLAG_V = C_EXECUTE.FLAG_V;
+
+    //     uint32_t currOp = C_EXECUTE.oppCode;
+    //     uint32_t instr = C_MEMORY.instr;
+
+    //     if (is_memory(currOp)){
+
+    //         calculate(currOp);
+    //         int cacheHit = cache_hit(D_CACHE, C_EXECUTE.result);
+    //         if (cacheHit >= 0){
+    //             printf("dcache hit (0x%" PRIx64") at cycle %d\n", C_EXECUTE.result, stat_cycles + 1);
+    //             memoryOperation_hit(currOp);
+    //         } else {
+    //             printf("dcache miss (0x%" PRIx64") at cycle %d\n", C_EXECUTE.result, stat_cycles + 1);
+    //             set_stall(PL_DECODE_INCR_FIFTY);
+    //         }
+
+    //         //CHECK IF OPERATING ON SAME REGISTERS, THEN DONE WITH STALL
+    //         /* Check for Stalls. <---- is this ordering correct? should the op go first? */
+
+    //         /*Check for store after load stalls*/
+    //         if (is_stur(C_MEMORY.oppCode)){
+    //             if (is_load(C_EXECUTE.oppCode)){
+    //                 if (VERBOSE_FLAG) printf("MEMORY: store after a load stall\n");
+    //                 set_stall(PL_STAGE_EXECUTE);
+    //             }
+    //         }
+    //     } else {
+    //         C_MEMORY.result = C_EXECUTE.result;
+    //         C_MEMORY.resultRegister = C_EXECUTE.resultRegister;
+    //     }
+    //     /*Check for false run bit*/
+    //     if (!C_MEMORY.run_bit) {
+    //         RUN_BIT = false; 
+    //         return;
+    //     }
+
+    // }
+////////////////////////////////////////////////////////////////////////////
+
     /* Executes memory operations at the end of our miss. Eg: our base case.*/
 void memoryOperation_basecase(uint32_t currOp){
         //Code seperated into LOAD and STORE cases for ease of reading
@@ -411,7 +482,7 @@ void memoryOperation_hit(uint32_t currOpp){
 
         uint64_t result;
         uint32_t currOp = C_DECODE.oppCode;
-
+        
         calculate(C_EXECUTE.oppCode);
         
         if (is_executeable(currOp)){
@@ -649,6 +720,7 @@ void memoryOperation_hit(uint32_t currOpp){
 
     void pipe_stage_fetch()
     {
+        /* IF STALL_FOR_CYCLES IS 0, AND STALL_FOR_DCACHE IS 0, AND C_DECODE IS EXECUTE, THEN FETCH*/
         // printf("FETCH: Currently %d STALL_FOR_CYCLES for start_addr %08x\n", STALL_FOR_CYCLES, STALL_START_ADDR);
         uint32_t currOpp;
         int cacheHit;
@@ -656,7 +728,7 @@ void memoryOperation_hit(uint32_t currOpp){
         if ((!C_MEMORY.run_bit) || (!C_EXECUTE.run_bit) || (C_MEMORY.bubble_bit)){
             if (STALL_FOR_CYCLES > 0){
                 STALL_FOR_CYCLES -= 1;
-                if (STALL_FOR_CYCLES == 0) printf("icache fill at cycle %d\n", stat_cycles + 1);
+                if (STALL_FOR_CYCLES == 0) printf("icache fill at cycle %d\n", stat_cycles + 1); //***
                 if ((STALL_FOR_CYCLES == 0) && (STALL_FOR_CYCLES_DCACHE > 1)){
                     // printf("icache fill at cycle %d\n", stat_cycles);
                     C_DECODE.is_overrideable_bubble = true;
@@ -671,8 +743,9 @@ void memoryOperation_hit(uint32_t currOpp){
                 // C_DECODE.instr = C_FETCH.instr;
                 // C_DECODE.oppCode = get_opp_code(C_FETCH.instr);
                 // C_DECODE.p_taken = C_FETCH.p_taken;
+                printf("icache hit (0x%" PRIx64") at cycle %d\n", CURRENT_STATE.PC, stat_cycles); //***
+
                 fetch_base();
-                printf("icache hit (0x%" PRIx64") at cycle %d\n", CURRENT_STATE.PC - 4, stat_cycles);
             }
             return;
          }
@@ -685,8 +758,10 @@ void memoryOperation_hit(uint32_t currOpp){
         if (C_FETCH.stall_bit){
             /* Finished Stalling. Actually load mem values in */
             if (STALL_FOR_CYCLES == 0){
+                printf("icache hit (0x%" PRIx64") at cycle %d\n", CURRENT_STATE.PC, stat_cycles + 1); //***
+
                 fetch_base();
-                printf("icache hit (0x%" PRIx64") at cycle %d\n", CURRENT_STATE.PC - 4, stat_cycles + 1);
+
 
                 // unset_stall(PL_INCREMENT_FIFTY);
                 // cacheHit = cache_hit(I_CACHE, CURRENT_STATE.PC);
@@ -708,7 +783,7 @@ void memoryOperation_hit(uint32_t currOpp){
             } else if (STALL_FOR_CYCLES > 0){
                 insert_bubble(PL_STAGE_DECODE);
                 STALL_FOR_CYCLES -= 1;
-                if (STALL_FOR_CYCLES == 0) printf("icache fill at cycle %d\n", stat_cycles + 1);
+                if (STALL_FOR_CYCLES == 0) printf("icache fill at cycle %d\n", stat_cycles + 1); //***
             }
             return;
         }
@@ -750,7 +825,6 @@ void memoryOperation_hit(uint32_t currOpp){
 		else
         {
         	printf("icache miss (0x%" PRIx64") at cycle %d\n", CURRENT_STATE.PC, stat_cycles + 1);
-
             set_stall(PL_INCREMENT_FIFTY);
 
         	// currOpp = mem_read_32(CURRENT_STATE.PC);
