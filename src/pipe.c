@@ -65,7 +65,7 @@
         
         CURRENT_STATE.PC = 0x00400000;
         STALL_FOR_CYCLES = 0;
-        VERBOSE_FLAG = false; //<----SET THIS TO FALSE WHEN YOU TURN IN ASSIGNMENTS
+        VERBOSE_FLAG = false;//true;//false; //<----SET THIS TO FALSE WHEN YOU TURN IN ASSIGNMENTS
         // printf("PC initialized to  %08x\n",  CURRENT_STATE.PC);
     }
 
@@ -759,8 +759,7 @@ void memoryOperation_hit(uint32_t currOpp){
         if (C_FETCH.stall_bit){
             /* Finished Stalling. Actually load mem values in */
             if (STALL_FOR_CYCLES == 0){
-                printf("icache hit (0x%" PRIx64") at cycle %d\n", CURRENT_STATE.PC, stat_cycles + 1); //***
-
+		printf("icache hit (0x%" PRIx64") at cycle %d\n", CURRENT_STATE.PC, stat_cycles + 1);
                 fetch_base();
 
 
@@ -797,7 +796,6 @@ void memoryOperation_hit(uint32_t currOpp){
         }
         if (C_FETCH.squash_bit){
             C_FETCH.squash_bit = false;
-             printf("icache hit (0x%" PRIx64") at cycle %d\n", C_DECODE.pc + 4, stat_cycles + 1); //***
 //technically a fetch should be done here
 		return;
         }

@@ -405,8 +405,8 @@ void branchCond(uint64_t hexLine){
         if (!same_subblock(FETCH_PC, CURRENT_STATE.PC)){
             if (VERBOSE_FLAG) printf("BRANCHCOND: SHORT-CIRCUIT STALL\n");
             if (STALL_FOR_CYCLES > 0) printf("icache bubble (%d)\n", STALL_FOR_CYCLES);
-            unset_stall(PL_INCREMENT_FIFTY);
-        }
+	    unset_stall(PL_INCREMENT_FIFTY);
+        } //else C_FETCH.cancel_stall = true;
     }
     return;
 }
