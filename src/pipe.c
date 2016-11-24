@@ -65,7 +65,7 @@
         
         CURRENT_STATE.PC = 0x00400000;
         STALL_FOR_CYCLES = 0;
-        VERBOSE_FLAG = false;//true;//false; //<----SET THIS TO FALSE WHEN YOU TURN IN ASSIGNMENTS
+        VERBOSE_FLAG = false; //<----SET THIS TO FALSE WHEN YOU TURN IN ASSIGNMENTS
         // printf("PC initialized to  %08x\n",  CURRENT_STATE.PC);
     }
 
@@ -723,7 +723,7 @@ void memoryOperation_hit(uint32_t currOpp){
     {
         /* IF STALL_FOR_CYCLES IS 0, AND STALL_FOR_DCACHE IS 0, AND C_DECODE IS EXECUTE, THEN FETCH*/
         // printf("FETCH: Currently %d STALL_FOR_CYCLES for start_addr %08x\n", STALL_FOR_CYCLES, STALL_START_ADDR);
-        uint32_t currOpp;
+	uint32_t currOpp;
         int cacheHit;
         if (STALL_FOR_CYCLES > 0) printf("icache bubble (%d)\n", STALL_FOR_CYCLES);
         if ((!C_MEMORY.run_bit) || (!C_EXECUTE.run_bit) || (C_MEMORY.bubble_bit)){
@@ -754,7 +754,7 @@ void memoryOperation_hit(uint32_t currOpp){
             C_FETCH.bounce_bit = false;
             // C_DECODE.bubble_bit = false;
             unset_stall(PL_STAGE_MEMORY);
-            return;
+	    return;
         }
         if (C_FETCH.stall_bit){
             /* Finished Stalling. Actually load mem values in */
@@ -785,8 +785,9 @@ void memoryOperation_hit(uint32_t currOpp){
                 STALL_FOR_CYCLES -= 1;
                 if (STALL_FOR_CYCLES == 0) {
                     printf("icache fill at cycle %d\n", stat_cycles + 1); 
-                    /*if room, increment beyond one, and add*/
-                    cache_update(STALL_START_ADDR, I_CACHE);
+                    //C_FETCH.squash_bit = false; // <-- do not remove this. this is to squash a bug.
+		    /*if room, increment beyond one, and add*/
+                    //cache_update(STALL_START_ADDR, I_CACHE);
                 }
             }// else {
 	//	printf("icache hit (0x%" PRIx64") at cycle %d\n", CURRENT_STATE.PC, stat_cycles + 1);	
@@ -797,9 +798,8 @@ void memoryOperation_hit(uint32_t currOpp){
         if (C_FETCH.squash_bit){
             C_FETCH.squash_bit = false;
 //technically a fetch should be done here
-		return;
+	    return;
         }
-
         if (!RUN_BIT)
             return;
         // printf("FETCH: pc as hex is %" PRIx64 "\n", CURRENT_STATE.PC);
@@ -954,7 +954,8 @@ void memoryOperation_hit(uint32_t currOpp){
             case PL_STAGE_MEMORY:
                 if (VERBOSE_FLAG) printf("unset pl_stage_memory\n");
                 C_FETCH.stall_bit = false;
-                C_DECODE.bubble_bit = false;
+                C_FETCH.squash_bit = false;
+		C_DECODE.bubble_bit = false;
                 C_DECODE.stall_bit = false;
                 C_EXECUTE.stall_bit = false;
                 C_MEMORY.bubble_bit = false;
@@ -966,7 +967,6 @@ void memoryOperation_hit(uint32_t currOpp){
                 C_EXECUTE.stall_bit = false;
                 // C_MEMORY.stall_bit = false;
                 C_MEMORY.bubble_bit = false;
-
                 C_WRITE.stall_bit = false;
                 STALL_FOR_CYCLES_DCACHE = 0;
                 break;
