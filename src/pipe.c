@@ -203,7 +203,8 @@
                 /* insert bubble*/
                 STALL_FOR_CYCLES_DCACHE -= 1;
                 if (STALL_FOR_CYCLES_DCACHE == 0) {
-                    printf("dcache fill at cycle %d\n", stat_cycles);
+                    printf("dcache fill at cycle %d\n", stat_cycles + 1);
+                    // C_EXECUTE.oppCode = OPP_MACRO_UNK;
                     //unset_stall(PL_DECODE_INCR_FIFTY);
                 }   
                 if (VERBOSE_FLAG) printf("MEMORY: number of stall cycles after decrement %d \n", STALL_FOR_CYCLES_DCACHE);
@@ -783,13 +784,22 @@ void memoryOperation_hit(uint32_t currOpp){
             } else if (STALL_FOR_CYCLES > 0){
                 insert_bubble(PL_STAGE_DECODE);
                 STALL_FOR_CYCLES -= 1;
-                if (STALL_FOR_CYCLES == 0) printf("icache fill at cycle %d\n", stat_cycles + 1); //***
-            }
+                if (STALL_FOR_CYCLES == 0) {
+                    printf("icache fill at cycle %d\n", stat_cycles + 1); 
+                    /*if room, increment beyond one, and add*/
+                    cache_update(STALL_START_ADDR, I_CACHE);
+                }
+            }// else {
+	//	printf("icache hit (0x%" PRIx64") at cycle %d\n", CURRENT_STATE.PC, stat_cycles + 1);	
+	//	fetch_base();
+	//	}
             return;
         }
         if (C_FETCH.squash_bit){
             C_FETCH.squash_bit = false;
-            return;
+             printf("icache hit (0x%" PRIx64") at cycle %d\n", C_DECODE.pc + 4, stat_cycles + 1); //***
+//technically a fetch should be done here
+		return;
         }
 
         if (!RUN_BIT)
