@@ -387,6 +387,7 @@ void branchCond(uint64_t hexLine){
         if (C_EXECUTE.p_taken){
             if (VERBOSE_FLAG) printf("BRANCHCOND: Branch not taken, predict branch taken\n");
             CURRENT_STATE.PC = C_EXECUTE.pc + 4;
+	    printf("icache hit (0x%" PRIx64") at cycle %d\n", C_FETCH.pc, stat_cycles + 1);	
            if (CURRENT_STATE.PC != C_EXECUTE.predicted_pc)
 		      squash(PL_STAGE_DECODE);
 	    } else{
