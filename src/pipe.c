@@ -66,7 +66,6 @@
         CURRENT_STATE.PC = 0x00400000;
         STALL_FOR_CYCLES = 0;
         VERBOSE_FLAG = false; //<----SET THIS TO FALSE WHEN YOU TURN IN ASSIGNMENTS
-        // printf("PC initialized to  %08x\n",  CURRENT_STATE.PC);
     }
 
     void pipe_cycle()
@@ -152,7 +151,7 @@
             if (VERBOSE_FLAG)  printf("MEM: number of dcache stall cycles entering loop %d \n", STALL_FOR_CYCLES_DCACHE);
             if (STALL_FOR_CYCLES_DCACHE  == 0){
                 /* execute normal opp*/
-                C_MEMORY.oppCode = C_EXECUTE.oppCode;
+                /*C_MEMORY.oppCode = C_EXECUTE.oppCode;
                 C_MEMORY.instr = C_EXECUTE.instr;
                 C_MEMORY.pc = C_EXECUTE.pc;
                 C_MEMORY.retired = C_EXECUTE.retired;
@@ -162,23 +161,23 @@
                 C_MEMORY.FLAG_N = C_EXECUTE.FLAG_N;
                 C_MEMORY.FLAG_C = C_EXECUTE.FLAG_C;
                 C_MEMORY.FLAG_V = C_EXECUTE.FLAG_V;
-
-                uint32_t currOp = C_EXECUTE.oppCode;
+*/
+                uint32_t currOp = C_MEMORY.oppCode;
                 uint32_t instr = C_MEMORY.instr;
-                int cacheHit = cache_hit(D_CACHE, C_EXECUTE.result);
+                int cacheHit = cache_hit(D_CACHE, C_MEMORY.result);
 
                 if (is_memory(currOp)){
                     if (VERBOSE_FLAG)
                         printf("MEMORY: basecase about to be triggered\n");
-                    if (cacheHit >= 0){
+		    if (cacheHit >= 0){
                         if (VERBOSE_FLAG) printf("DCACHE HIT\n");
-                        // printf("dcache hit (0x%" PRIx64") at cycle %d\n", C_EXECUTE.result, stat_cycles + 1);
                         memoryOperation_hit(currOp);
-                        printf("dcache hit (0x%" PRIx64") at cycle %d\n", C_EXECUTE.result, stat_cycles + 1);
+			printf("dcache hit (0x%" PRIx64") at cycle %d\n", C_EXECUTE.result, stat_cycles + 1);
                     } else {
                         if (VERBOSE_FLAG) printf("DCACHE MISS\n");
                         // printf("dcache miss (0x%" PRIx64") at cycle %d\n", C_EXECUTE.result, stat_cycles + 1);
                         memoryOperation_basecase(currOp);
+			//if (!STALL_FOR_CYCLES) unset_stall(PL_INCREMENT_FIFTY);
                         printf("dcache hit (0x%" PRIx64") at cycle %d\n", C_EXECUTE.result, stat_cycles + 1);
                     }
                     
@@ -189,10 +188,10 @@
                             set_stall(PL_STAGE_EXECUTE);
                         }
                     }
-                } else {
+                } /*else {
                     C_MEMORY.result = C_EXECUTE.result;
                     C_MEMORY.resultRegister = C_EXECUTE.resultRegister;
-                }
+                }*/
                 /*Check for false run bit*/
                 if (!C_MEMORY.run_bit) {
                     RUN_BIT = false; 
@@ -204,8 +203,7 @@
                 STALL_FOR_CYCLES_DCACHE -= 1;
                 if (STALL_FOR_CYCLES_DCACHE == 0) {
                     printf("dcache fill at cycle %d\n", stat_cycles + 1);
-                    // C_EXECUTE.oppCode = OPP_MACRO_UNK;
-                    //unset_stall(PL_DECODE_INCR_FIFTY);
+		    
                 }   
                 if (VERBOSE_FLAG) printf("MEMORY: number of stall cycles after decrement %d \n", STALL_FOR_CYCLES_DCACHE);
             }
@@ -238,6 +236,10 @@
             } else {
                 printf("dcache miss (0x%" PRIx64") at cycle %d\n", C_EXECUTE.result, stat_cycles + 1);
                 set_stall(PL_DECODE_INCR_FIFTY);
+		C_MEMORY.oppCode = C_EXECUTE.oppCode;
+		C_MEMORY.result = C_EXECUTE.result;
+		C_MEMORY.resultRegister = C_EXECUTE.resultRegister;
+		C_EXECUTE.oppCode = OPP_MACRO_UNK;
             }
             //CHECK IF OPERATING ON SAME REGISTERS, THEN DONE WITH STALL
             /* Check for Stalls. <---- is this ordering correct? should the op go first? */
@@ -334,42 +336,42 @@
     /* Executes memory operations at the end of our miss. Eg: our base case.*/
 void memoryOperation_basecase(uint32_t currOp){
         //Code seperated into LOAD and STORE cases for ease of reading
-        int cacheHit = cache_hit(D_CACHE, C_EXECUTE.result);
+        int cacheHit = cache_hit(D_CACHE, C_MEMORY.result);
 
         //LOAD CASE
         if (is_load(currOp)){
             //LDUR and LDURBH will set the C_MEMORY.result, and C_MEMORY.resultRegister flags
           
-          	calculate(currOp);
-          	int cacheHit = cache_hit(D_CACHE, C_EXECUTE.result);
-            uint64_t addr_index = (C_EXECUTE.result & 0x1FE0) >> 5;
-            uint64_t cache_tag = (C_EXECUTE.result & 0xFFFFFFFFFFFFE000) >> 11;
-          	uint64_t subblock_mask = (C_EXECUTE.result & (0x7 << 2)) >> 2;
+          	//calculate(currOp);
+          	int cacheHit = cache_hit(D_CACHE, C_MEMORY.result);
+            uint64_t addr_index = (C_MEMORY.result & 0x1FE0) >> 5;
+            uint64_t cache_tag = (C_MEMORY.result & 0xFFFFFFFFFFFFE000) >> 11;
+          	uint64_t subblock_mask = (C_MEMORY.result & (0x7 << 2)) >> 2;
             uint32_t data, data_h, data1, data2; 
             switch (currOp){
                 case OPP_MACRO_LDUR:
-                      	data1 = mem_read_32(C_EXECUTE.result);
-                   		data2 = mem_read_32(C_EXECUTE.result + 4);
+                      	data1 = mem_read_32(C_MEMORY.result);
+                   		data2 = mem_read_32(C_MEMORY.result + 4);
                     	C_MEMORY.result = ((uint64_t) data2 << 32) | data1;
-                    	C_MEMORY.resultRegister = C_EXECUTE.resultRegister;
+                    	C_MEMORY.resultRegister = C_MEMORY.resultRegister;
                       	set_stall(PL_DECODE_INCR_FIFTY);
-                    	cache_update(C_EXECUTE.result, D_CACHE); // C_EXECUTE.result is the address
+                    	cache_update(C_MEMORY.result, D_CACHE); // C_EXECUTE.result is the address
                     break;
               
                 case OPP_MACRO_LDURB:
-                      	data = mem_read_32(C_EXECUTE.result);
+                      	data = mem_read_32(C_MEMORY.result);
                     	C_MEMORY.result = data;
-                    	C_MEMORY.resultRegister = C_EXECUTE.resultRegister;
+                    	C_MEMORY.resultRegister = C_MEMORY.resultRegister;
                       	set_stall(PL_DECODE_INCR_FIFTY);
-                    	cache_update(C_EXECUTE.result, D_CACHE); // C_EXECUTE.result is the address
+                    	cache_update(C_MEMORY.result, D_CACHE); // C_EXECUTE.result is the address
               		break;
               
                 case OPP_MACRO_LDURH:
-                      	data_h = mem_read_32(C_EXECUTE.result);
+                      	data_h = mem_read_32(C_MEMORY.result);
                     	C_MEMORY.result = zeroExtend(data_h);
-                    	C_MEMORY.resultRegister = C_EXECUTE.resultRegister;
+                    	C_MEMORY.resultRegister = C_MEMORY.resultRegister;
                       	set_stall(PL_DECODE_INCR_FIFTY);
-                    	cache_update(C_EXECUTE.result, D_CACHE);
+                    	cache_update(C_MEMORY.result, D_CACHE);
                     break;
                 default:
                     if (VERBOSE_FLAG) printf("You triggered is_load for some reason\n");
@@ -379,26 +381,26 @@ void memoryOperation_basecase(uint32_t currOp){
             switch(currOp){
                 //NO structs stored
                 case OPP_MACRO_STUR:
-                    calculate(currOp);
-                    cache_update(C_EXECUTE.result, D_CACHE);
-                    dcache_modify(C_EXECUTE.result, (CURRENT_STATE.REGS[C_EXECUTE.resultRegister] & 0xFFFFFFFF00000000) >> 32, 
-                        CURRENT_STATE.REGS[C_EXECUTE.resultRegister] & 0xFFFFFFFF, true);
+                  //  calculate(currOp);
+                    cache_update(C_MEMORY.result, D_CACHE);
+                    dcache_modify(C_MEMORY.result, (CURRENT_STATE.REGS[C_MEMORY.resultRegister] & 0xFFFFFFFF00000000) >> 32, 
+                        CURRENT_STATE.REGS[C_MEMORY.resultRegister] & 0xFFFFFFFF, true);
                                  // replaced mem_write_32 with dcache_modify calls
                     break;
                 case OPP_MACRO_STURB:
-                    calculate(currOp);
-                    cache_update(C_EXECUTE.result, D_CACHE);
-                    dcache_modify(C_EXECUTE.result, CURRENT_STATE.REGS[C_EXECUTE.resultRegister] & 0xFF, 0, false);
+                    //calculate(currOp);
+                    cache_update(C_MEMORY.result, D_CACHE);
+                    dcache_modify(C_MEMORY.result, CURRENT_STATE.REGS[C_MEMORY.resultRegister] & 0xFF, 0, false);
                     break;
                 case OPP_MACRO_STURH:
-                    calculate(currOp);
-                    cache_update(C_EXECUTE.result, D_CACHE);
-                    dcache_modify(C_EXECUTE.result, CURRENT_STATE.REGS[C_EXECUTE.resultRegister] & 0xFFFF, 0, false);
+                    //calculate(currOp);
+                    cache_update(C_MEMORY.result, D_CACHE);
+                    dcache_modify(C_MEMORY.result, CURRENT_STATE.REGS[C_MEMORY.resultRegister] & 0xFFFF, 0, false);
                     break;
                 case OPP_MACRO_STURW:
-                    calculate(currOp);
-                    cache_update(C_EXECUTE.result, D_CACHE);
-                    dcache_modify(C_EXECUTE.result, CURRENT_STATE.REGS[C_EXECUTE.resultRegister]);
+                    //calculate(currOp);
+                    cache_update(C_MEMORY.result, D_CACHE);
+                    dcache_modify(C_MEMORY.result, CURRENT_STATE.REGS[C_MEMORY.resultRegister]);
                     break;
             }
         }
@@ -735,18 +737,23 @@ void memoryOperation_hit(uint32_t currOpp){
                     C_DECODE.is_overrideable_bubble = true;
                     // printf("icache fill at cycle %d\n", stat_cycles);
                 }
+		if ((STALL_FOR_CYCLES == 0) && (STALL_FOR_CYCLES_DCACHE == 1)){
+		    C_FETCH.override_exec = true;
+		}
             }
-
             if (VERBOSE_FLAG) printf("STALL-FOR_CYCLES %d AND DCACHE STALL %d\n", STALL_FOR_CYCLES, STALL_FOR_CYCLES_DCACHE);
-            if ((STALL_FOR_CYCLES == 0) && (STALL_FOR_CYCLES_DCACHE == 1) && (C_DECODE.is_overrideable_bubble)){
-                // C_DECODE.predicted_pc = C_FETCH.predicted_pc;
-                // C_DECODE.pc = C_FETCH.pc;
-                // C_DECODE.instr = C_FETCH.instr;
-                // C_DECODE.oppCode = get_opp_code(C_FETCH.instr);
-                // C_DECODE.p_taken = C_FETCH.p_taken;
-                printf("icache hit (0x%" PRIx64") at cycle %d\n", CURRENT_STATE.PC, stat_cycles); //***
-
+            if ((STALL_FOR_CYCLES == 0) && (STALL_FOR_CYCLES_DCACHE == 0) && (C_FETCH.override_exec)){
+		pipe_stage_execute();
+		pipe_stage_decode();
+		printf("icache hit (0x%" PRIx64") at cycle %d\n", CURRENT_STATE.PC, stat_cycles + 1);		
+		fetch_base();
+		C_FETCH.override_exec = false;
+		return;
+		}
+	    if ((STALL_FOR_CYCLES == 0) && (STALL_FOR_CYCLES_DCACHE == 1) && (C_DECODE.is_overrideable_bubble)){
+                printf("icache hit (0x%" PRIx64") at cycle %d\n", CURRENT_STATE.PC, stat_cycles + 1); //***
                 fetch_base();
+		C_FETCH.override_exec = true;
             }
             return;
          }
@@ -757,7 +764,7 @@ void memoryOperation_hit(uint32_t currOpp){
 	    return;
         }
         if (C_FETCH.stall_bit){
-            /* Finished Stalling. Actually load mem values in */
+           /* Finished Stalling. Actually load mem values in */
             if (STALL_FOR_CYCLES == 0){
 		printf("icache hit (0x%" PRIx64") at cycle %d\n", CURRENT_STATE.PC, stat_cycles + 1);
                 fetch_base();
@@ -785,7 +792,7 @@ void memoryOperation_hit(uint32_t currOpp){
                 STALL_FOR_CYCLES -= 1;
                 if (STALL_FOR_CYCLES == 0) {
                     printf("icache fill at cycle %d\n", stat_cycles + 1); 
-                    //C_FETCH.squash_bit = false; // <-- do not remove this. this is to squash a bug.
+                    C_FETCH.squash_bit = false; // <-- do not remove this. this is to squash a bug.
 		    /*if room, increment beyond one, and add*/
                     //cache_update(STALL_START_ADDR, I_CACHE);
                 }
