@@ -760,7 +760,9 @@ void memoryOperation_hit(uint32_t currOpp){
         if (C_FETCH.bounce_bit){
             C_FETCH.bounce_bit = false;
             // C_DECODE.bubble_bit = false;
-            unset_stall(PL_STAGE_MEMORY);
+	    if (!C_FETCH.exec_stall) printf("icache hit (0x%" PRIx64") at cycle %d\n", CURRENT_STATE.PC, stat_cycles + 1);
+            C_FETCH.exec_stall = false;
+	    unset_stall(PL_STAGE_MEMORY);
 	    return;
         }
         if (C_FETCH.stall_bit){
@@ -803,6 +805,10 @@ void memoryOperation_hit(uint32_t currOpp){
             return;
         }
         if (C_FETCH.squash_bit){
+	    if (!C_EXECUTE.cancel_bit) {
+		printf("icache hit (0x%" PRIx64") at cycle %d\n", C_FETCH.pc + 4, stat_cycles + 1);
+		C_EXECUTE.cancel_bit = false;
+		}
             C_FETCH.squash_bit = false;
 //technically a fetch should be done here
 	    return;
@@ -1005,7 +1011,8 @@ void memoryOperation_hit(uint32_t currOpp){
             //Check if the registers overlap between MEM, and current
             if (register_number == C_MEMORY.resultRegister){ 
                 if (VERBOSE_FLAG) printf("EXEC STALL: EXEC STALL EXECUTED\n");
-                set_stall(PL_STAGE_EXECUTE);
+                C_FETCH.exec_stall = true;
+		set_stall(PL_STAGE_EXECUTE);
                 // insert_bubble(PL_STAGE_MEMORY);
                 C_EXECUTE.retired = 0;
             }

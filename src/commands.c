@@ -388,9 +388,12 @@ void branchCond(uint64_t hexLine){
         if (C_EXECUTE.p_taken){
             if (VERBOSE_FLAG) printf("BRANCHCOND: Branch not taken, predict branch taken\n");
             CURRENT_STATE.PC = C_EXECUTE.pc + 4;
-	    printf("icache hit (0x%" PRIx64") at cycle %d\n", C_FETCH.pc + 4, stat_cycles + 1);	
-           if (CURRENT_STATE.PC != C_EXECUTE.predicted_pc)
+//	    printf("icache hit (0x%" PRIx64") at cycle %d\n", C_FETCH.pc + 4, stat_cycles + 1);	
+           if (CURRENT_STATE.PC != C_EXECUTE.predicted_pc){
 		      squash(PL_STAGE_DECODE);
+		      printf("icache hit (0x%" PRIx64") at cycle %d\n", C_FETCH.pc + 4, stat_cycles + 1);
+		      C_EXECUTE.cancel_bit = true;
+		}
 	    } else{
             if (VERBOSE_FLAG) printf("BRANCHCOND: Branch not taken, predict branch not taken\n");
         }
@@ -408,6 +411,7 @@ void branchCond(uint64_t hexLine){
             if (VERBOSE_FLAG) printf("BRANCHCOND: SHORT-CIRCUIT STALL\n");
             if (STALL_FOR_CYCLES > 0) printf("icache bubble (%d)\n", STALL_FOR_CYCLES);
 	    unset_stall(PL_INCREMENT_FIFTY);
+	    C_EXECUTE.cancel_bit = true;
         } //else C_FETCH.cancel_stall = true;
     }
     return;

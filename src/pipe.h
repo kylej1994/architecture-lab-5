@@ -106,6 +106,7 @@ typedef struct CPU_CYCLE_FETCH{
 	int pseudo_stall_bit;
 	int cancel_stall;
 	int override_exec;
+	int exec_stall;
 } CYCLE_FETCH;
 
 typedef struct CPU_CYCLE_DECODE{
@@ -135,6 +136,7 @@ typedef struct CPU_CYCLE_EXECUTE{
 	int p_taken;
 	
 	int oppCode;
+	int cancel_bit;
 	int FLAG_C;
 	int FLAG_N;
 	int FLAG_Z;
